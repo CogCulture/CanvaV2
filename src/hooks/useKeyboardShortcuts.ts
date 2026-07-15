@@ -65,35 +65,35 @@ export const useKeyboardShortcuts = ({
         },
       },
       copy_adjustments: {
-        shouldFire: () => true,
+        shouldFire: (s: any) => s.ui.activeView !== 'canvas',
         execute: (e: any) => {
           e.preventDefault();
           handleCopyAdjustments();
         },
       },
       paste_adjustments: {
-        shouldFire: () => true,
+        shouldFire: (s: any) => s.ui.activeView !== 'canvas',
         execute: (e: any) => {
           e.preventDefault();
           handlePasteAdjustments();
         },
       },
       copy_files: {
-        shouldFire: (s: any) => s.library.multiSelectedPaths.length > 0,
+        shouldFire: (s: any) => s.library.multiSelectedPaths.length > 0 && s.ui.activeView !== 'canvas',
         execute: (e: any, s: any) => {
           e.preventDefault();
           s.process.setProcess({ copiedFilePaths: s.library.multiSelectedPaths });
         },
       },
       paste_files: {
-        shouldFire: () => true,
+        shouldFire: (s: any) => s.ui.activeView !== 'canvas',
         execute: (e: any) => {
           e.preventDefault();
           handlePasteFiles('copy');
         },
       },
       select_all: {
-        shouldFire: () => sortedListRef.current.length > 0,
+        shouldFire: (s: any) => sortedListRef.current.length > 0 && s.ui.activeView !== 'canvas',
         execute: (e: any, s: any) => {
           e.preventDefault();
           s.library.setLibrary({ multiSelectedPaths: sortedListRef.current.map((f: ImageFile) => f.path) });
@@ -103,7 +103,7 @@ export const useKeyboardShortcuts = ({
         },
       },
       delete_selected: {
-        shouldFire: (s: any) => !s.editor.activeMaskContainerId && !s.editor.activeAiPatchContainerId,
+        shouldFire: (s: any) => !s.editor.activeMaskContainerId && !s.editor.activeAiPatchContainerId && s.ui.activeView !== 'canvas',
         execute: (e: any) => {
           e.preventDefault();
           handleDeleteSelected();
@@ -237,14 +237,14 @@ export const useKeyboardShortcuts = ({
         },
       },
       undo: {
-        shouldFire: (s: any) => !!s.editor.selectedImage && s.editor.historyIndex > 0,
+        shouldFire: (s: any) => !!s.editor.selectedImage && s.editor.historyIndex > 0 && s.ui.activeView !== 'canvas',
         execute: (e: any, s: any) => {
           e.preventDefault();
           s.editor.undo();
         },
       },
       redo: {
-        shouldFire: (s: any) => !!s.editor.selectedImage && s.editor.historyIndex < s.editor.history.length - 1,
+        shouldFire: (s: any) => !!s.editor.selectedImage && s.editor.historyIndex < s.editor.history.length - 1 && s.ui.activeView !== 'canvas',
         execute: (e: any, s: any) => {
           e.preventDefault();
           s.editor.redo();

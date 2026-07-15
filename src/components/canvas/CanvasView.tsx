@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef, useMemo } from 'react';
+import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
 import * as fabric from 'fabric';
 import { X, ZoomIn, ZoomOut, Image as ImageIcon } from 'lucide-react';
 import { useCanvasStore } from '../../store/useCanvasStore';
@@ -39,6 +39,7 @@ export default function CanvasView() {
   const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const clipboardRef = useRef<fabric.Object | null>(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [rulerUnit, setRulerUnit] = useState<'px' | 'in' | 'cm'>('px');
 
@@ -129,6 +130,51 @@ export default function CanvasView() {
       canvas.setActiveObject(cloned);
       canvas.renderAll();
     });
+  }, [canvas]);
+
+  useEffect(() => {
+    if (!canvas) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+      
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+      if (cmdOrCtrl && e.key.toLowerCase() === 'c') {
+         const obj = canvas.getActiveObject();
+         if (obj) {
+            obj.clone().then((cloned: fabric.Object) => {
+               (cloned as any)._layerName = (obj as any)._layerName;
+               clipboardRef.current = cloned;
+            });
+         }
+      } else if (cmdOrCtrl && e.key.toLowerCase() === 'v') {
+         if (clipboardRef.current) {
+            clipboardRef.current.clone().then((cloned: fabric.Object) => {
+              (cloned as any)._canvasLayerId = crypto.randomUUID();
+              (cloned as any)._layerName = ((clipboardRef.current as any)._layerName ?? 'Layer') + ' copy';
+              cloned.set({
+                 left: (cloned.left ?? 0) + 20,
+                 top: (cloned.top ?? 0) + 20,
+                 evented: true,
+              });
+              canvas.add(cloned);
+              canvas.setActiveObject(cloned);
+              canvas.requestRenderAll();
+              clipboardRef.current = cloned;
+            });
+         }
+      } else if (cmdOrCtrl && e.key.toLowerCase() === 'a') {
+         e.preventDefault();
+         canvas.discardActiveObject();
+         const sel = new fabric.ActiveSelection(canvas.getObjects().filter(o => o.selectable !== false), { canvas });
+         canvas.setActiveObject(sel);
+         canvas.requestRenderAll();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [canvas]);
 
   return (
