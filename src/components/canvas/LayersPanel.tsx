@@ -194,6 +194,13 @@ function LayerRow({ layer }: { layer: CanvasLayer }) {
         obj.initDimensions();
       }
 
+      if (obj._isTypeOnPath && obj._repeatTextToFit) {
+        import('../../utils/textOnPathUtils').then(({ applyTextRepeat }) => {
+          applyTextRepeat(obj);
+          globalFabricCanvas?.requestRenderAll();
+        });
+      }
+
       globalFabricCanvas?.requestRenderAll();
     }
   };

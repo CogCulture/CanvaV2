@@ -38,7 +38,7 @@ export default function CanvasLeftSidebar() {
 
   return (
     <div 
-      className="w-12 shrink-0 flex flex-col items-center py-2 gap-2"
+      className="w-12 shrink-0 flex flex-col items-center py-2 gap-2 relative z-50"
       style={{
         background: '#1c1c1e',
         borderRight: '1px solid rgba(255,255,255,0.07)'
@@ -93,7 +93,10 @@ export default function CanvasLeftSidebar() {
       </button>
 
       {activeTool === 'pen' && (
-        <div className="absolute left-14 top-16 bg-[#2a2a2d] border border-white/10 rounded-lg shadow-xl p-3 flex flex-col gap-3 w-48 z-50">
+        <div 
+          className="absolute bg-[#2a2a2d] border border-white/10 rounded-lg shadow-xl p-3 flex flex-col gap-3 w-48 z-50"
+          style={{ left: '60px', top: '4rem' }}
+        >
           <div className="text-xs font-semibold text-white/80 uppercase tracking-wider">Pen Settings</div>
           
           <div className="flex flex-col gap-1">
@@ -127,7 +130,10 @@ export default function CanvasLeftSidebar() {
       )}
 
       {activeTool === 'lasso' && (
-        <div className="absolute left-14 top-40 bg-[#2a2a2d] border border-white/10 rounded-lg shadow-xl p-3 flex flex-col gap-3 w-48 z-50">
+        <div 
+          className="absolute bg-[#2a2a2d] border border-white/10 rounded-lg shadow-xl p-3 flex flex-col gap-3 w-48 z-50"
+          style={{ left: '60px', top: '10rem' }}
+        >
           <div className="text-xs font-semibold text-white/80 uppercase tracking-wider">Lasso Mode</div>
           
           <div className="flex flex-col gap-2 mt-1">
