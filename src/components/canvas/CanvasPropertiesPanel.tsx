@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import * as fabric from 'fabric';
 import { Move, RotateCcw, Maximize2, Blend, Type } from 'lucide-react';
+import { ColorInput } from './ColorInput';
 import { useCanvasStore } from '../../store/useCanvasStore';
 
 interface CanvasPropertiesPanelProps {
@@ -260,27 +261,23 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <span className="text-[9px] text-white/35 w-12 shrink-0">Fill</span>
-              <input
-                type="color"
-                value={props.fill || '#000000'}
-                onChange={(e) => {
-                  setProps((p) => p ? { ...p, fill: e.target.value } : p);
-                  applyProp('fill', e.target.value);
-                }}
-                className="flex-1 h-6 bg-transparent border border-white/10 rounded cursor-pointer"
+              <ColorInput 
+                value={props.fill || '#000000'} 
+                onChange={(val) => {
+                  setProps((p) => p ? { ...p, fill: val } : p);
+                  applyProp('fill', val);
+                }} 
               />
             </div>
             
             <div className="flex items-center gap-2">
               <span className="text-[9px] text-white/35 w-12 shrink-0">Stroke</span>
-              <input
-                type="color"
-                value={props.stroke || '#000000'}
-                onChange={(e) => {
-                  setProps((p) => p ? { ...p, stroke: e.target.value } : p);
-                  applyProp('stroke', e.target.value);
-                }}
-                className="flex-1 h-6 bg-transparent border border-white/10 rounded cursor-pointer"
+              <ColorInput 
+                value={props.stroke || '#000000'} 
+                onChange={(val) => {
+                  setProps((p) => p ? { ...p, stroke: val } : p);
+                  applyProp('stroke', val);
+                }} 
               />
             </div>
 

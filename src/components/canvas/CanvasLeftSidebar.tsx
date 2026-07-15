@@ -15,6 +15,7 @@ import {
 import { useState } from 'react';
 import { addTextToCanvas } from './ArtboardCanvas';
 import { useCanvasStore } from '../../store/useCanvasStore';
+import { ColorInput } from './ColorInput';
 
 const TOOLS = [
   { id: 'move', icon: MousePointer2, label: 'Selection / Move Tool (V)' },
@@ -99,17 +100,9 @@ export default function CanvasLeftSidebar() {
         >
           <div className="text-xs font-semibold text-white/80 uppercase tracking-wider">Pen Settings</div>
           
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-1 w-full">
             <label className="text-xs text-white/60">Color</label>
-            <div className="flex items-center gap-2">
-              <input 
-                type="color" 
-                value={penColor}
-                onChange={(e) => setPenColor(e.target.value)}
-                className="w-8 h-8 rounded cursor-pointer bg-transparent border-0 p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded"
-              />
-              <span className="text-xs text-white/80 font-mono uppercase">{penColor}</span>
-            </div>
+            <ColorInput value={penColor} onChange={setPenColor} />
           </div>
 
           <div className="flex flex-col gap-1">
