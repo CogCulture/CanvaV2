@@ -311,7 +311,7 @@ export default function CanvasView() {
           {/* Filmstrip at the bottom */}
           <div 
             className="h-[120px] shrink-0 border-t flex flex-col"
-            style={{ borderColor: 'rgba(255,255,255,0.07)', background: '#1c1c1e' }}
+            style={{ borderColor: 'rgba(255,255,255,0.07)', background: '#1c1c1e', position: 'relative', zIndex: 8020 }}
           >
             {timelineImages.length > 0 ? (
               <Filmstrip
