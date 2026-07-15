@@ -25,6 +25,7 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
   const isDrawingShape = useRef(false);
   const startPos = useRef({ x: 0, y: 0 });
   const currentShape = useRef<any>(null);
+  const dimensionLabel = useRef<fabric.Text | null>(null);
 
   // Lasso state
   const isLassoing = useRef(false);
@@ -458,6 +459,18 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
         (currentShape.current as any)._canvasLayerId = uuidv4();
         (currentShape.current as any)._layerName = activeTool === 'rect' ? 'Rectangle' : 'Ellipse';
         canvas.add(currentShape.current);
+
+        dimensionLabel.current = new fabric.Text('', {
+          left: startPos.current.x,
+          top: startPos.current.y - 20,
+          fontSize: 12,
+          fontFamily: 'Inter, sans-serif',
+          fill: '#ffffff',
+          backgroundColor: '#000000',
+          evented: false,
+          selectable: false,
+        });
+        canvas.add(dimensionLabel.current);
       } else if (activeTool === 'hand') {
         isPanning.current = true;
         lastPan.current = { x: o.e.clientX, y: o.e.clientY };
@@ -535,20 +548,43 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
       if (isDrawingShape.current && currentShape.current) {
         const pointer = o.scenePoint || o.pointer || (canvas.getPointer ? canvas.getPointer(o.e) : {x:0,y:0});
         const { x: startX, y: startY } = startPos.current;
+        let w = Math.abs(pointer.x - startX);
+        let h = Math.abs(pointer.y - startY);
+        
+        if (o.e.shiftKey) {
+          const size = Math.max(w, h);
+          w = size;
+          h = size;
+        }
+
         if (activeTool === 'rect') {
           currentShape.current.set({
-            width: Math.abs(pointer.x - startX),
-            height: Math.abs(pointer.y - startY),
-            left: Math.min(pointer.x, startX),
-            top: Math.min(pointer.y, startY),
+            width: w,
+            height: h,
+            left: pointer.x < startX ? startX - w : startX,
+            top: pointer.y < startY ? startY - h : startY,
           });
+          if (dimensionLabel.current) {
+            dimensionLabel.current.set({
+              text: ` W: ${Math.round(w)} H: ${Math.round(h)} `,
+              left: pointer.x + 10,
+              top: pointer.y + 10,
+            });
+          }
         } else if (activeTool === 'ellipse') {
           currentShape.current.set({
-            rx: Math.abs(pointer.x - startX) / 2,
-            ry: Math.abs(pointer.y - startY) / 2,
-            left: Math.min(pointer.x, startX) + Math.abs(pointer.x - startX) / 2,
-            top: Math.min(pointer.y, startY) + Math.abs(pointer.y - startY) / 2,
+            rx: w / 2,
+            ry: h / 2,
+            left: (pointer.x < startX ? startX - w : startX) + w / 2,
+            top: (pointer.y < startY ? startY - h : startY) + h / 2,
           });
+          if (dimensionLabel.current) {
+            dimensionLabel.current.set({
+              text: o.e.shiftKey ? ` R: ${Math.round(w/2)} ` : ` W: ${Math.round(w)} H: ${Math.round(h)} `,
+              left: pointer.x + 10,
+              top: pointer.y + 10,
+            });
+          }
         }
         canvas.requestRenderAll();
       } else if (activeTool === 'lasso') {
@@ -623,6 +659,10 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
         canvas.setActiveObject(currentShape.current);
         canvas.fire('object:modified', { target: currentShape.current });
         currentShape.current = null;
+        if (dimensionLabel.current) {
+          canvas.remove(dimensionLabel.current);
+          dimensionLabel.current = null;
+        }
         syncLayers(canvas);
         setActiveTool('move'); // Switch back to move tool
       }
