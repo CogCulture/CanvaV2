@@ -16,6 +16,9 @@ interface ObjProps {
   opacity: number;
   blend: string;
   type: string;
+  fill?: string;
+  stroke?: string;
+  strokeWidth?: number;
 }
 
 const BLEND_MODES = [
@@ -39,6 +42,10 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
     if (!canvas) return;
     const obj = canvas.getActiveObject();
     if (!obj) { setProps(null); return; }
+    
+    let fill = typeof obj.fill === 'string' ? obj.fill : '#000000';
+    let stroke = typeof obj.stroke === 'string' ? obj.stroke : '#000000';
+    
     setProps({
       x: Math.round(obj.left ?? 0),
       y: Math.round(obj.top ?? 0),
@@ -48,6 +55,9 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
       opacity: Math.round((obj.opacity ?? 1) * 100),
       blend: (obj.globalCompositeOperation as string) || 'source-over',
       type: obj.type ?? 'object',
+      fill,
+      stroke,
+      strokeWidth: obj.strokeWidth || 0,
     });
   }, [canvas]);
 
@@ -71,6 +81,8 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
     };
   }, [canvas, readProps]);
 
+  const saveTimeout = useRef<NodeJS.Timeout | null>(null);
+
   const applyProp = (key: string, value: any) => {
     if (!canvas) return;
     const obj = canvas.getActiveObject();
@@ -90,12 +102,18 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
       obj.set({ [key]: value } as any);
     }
     obj.setCoords();
-    canvas.fire('object:modified', { target: obj });
     canvas.renderAll();
     readProps();
+
+    if (saveTimeout.current) clearTimeout(saveTimeout.current);
+    saveTimeout.current = setTimeout(() => {
+      canvas.fire('object:modified', { target: obj });
+    }, 500);
   };
 
   const activeGuide = activeGuideId ? guides?.find(g => g.id === activeGuideId) : null;
+    
+  console.log('--- DEBUG PROPS ---', props);
 
   if (!props || !activeLayerId) {
     return (
@@ -179,7 +197,7 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
       {/* Transform */}
       <div className="space-y-2">
         <div className="flex items-center gap-1.5 text-[9px] text-white/30 uppercase tracking-widest font-semibold">
-          <Move size={9} /> Transform
+          <Move size={9} /> Transform (Type: {props.type})
         </div>
         <div className="grid grid-cols-2 gap-2">
           <Field label="X" value={props.x} onChange={(v) => applyProp('left', v)} />
@@ -232,6 +250,57 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
           </div>
         </div>
       </div>
+
+      {/* Shape Properties */}
+      {props.type && ['rect', 'ellipse', 'circle', 'path', 'polygon', 'line', 'triangle'].includes(props.type.toLowerCase()) && (
+        <div className="space-y-2 pt-3 border-t border-white/6">
+          <div className="flex items-center gap-1.5 text-[9px] text-white/30 uppercase tracking-widest font-semibold">
+            <Maximize2 size={9} /> Shape Properties
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-white/35 w-12 shrink-0">Fill</span>
+              <input
+                type="color"
+                value={props.fill || '#000000'}
+                onChange={(e) => {
+                  setProps((p) => p ? { ...p, fill: e.target.value } : p);
+                  applyProp('fill', e.target.value);
+                }}
+                className="flex-1 h-6 bg-transparent border border-white/10 rounded cursor-pointer"
+              />
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-white/35 w-12 shrink-0">Stroke</span>
+              <input
+                type="color"
+                value={props.stroke || '#000000'}
+                onChange={(e) => {
+                  setProps((p) => p ? { ...p, stroke: e.target.value } : p);
+                  applyProp('stroke', e.target.value);
+                }}
+                className="flex-1 h-6 bg-transparent border border-white/10 rounded cursor-pointer"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-white/35 w-12 shrink-0">S. Width</span>
+              <input
+                type="number"
+                min={0}
+                value={props.strokeWidth || 0}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  setProps((p) => p ? { ...p, strokeWidth: v } : p);
+                  applyProp('strokeWidth', v);
+                }}
+                className="flex-1 bg-white/6 border border-white/10 rounded-md px-2 py-1 text-[11px] text-white outline-none focus:border-blue-500/70 transition-colors"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Guidelines */}
       {guides?.length > 0 && (

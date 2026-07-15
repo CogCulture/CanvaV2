@@ -43,7 +43,9 @@ export const useCanvasHistory = (canvas: fabric.Canvas | null) => {
   useEffect(() => {
     if (!canvas) return;
 
-    const onModified = () => saveHistory();
+    const onModified = () => {
+      if (!isProcessingRef.current) saveHistory();
+    };
     const onAdded = (e: fabric.IEvent) => {
       // Avoid saving on initial load or internal canvas operations
       if (!isProcessingRef.current) saveHistory();
