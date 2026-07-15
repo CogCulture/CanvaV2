@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: always
+
+  backend:
+    build:
+      context: ./src-tauri
+      dockerfile: Dockerfile
+    expose:
+      - "8080"
+    environment:
+      - PORT=8080
+    # Store images persistently on the host VM
+    volumes:
+      - backend_tmp:/tmp
+    restart: always
+
+volumes:
+  backend_tmp:
