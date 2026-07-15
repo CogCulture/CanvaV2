@@ -34,6 +34,7 @@ export default function CanvasLeftSidebar() {
     activeTool, setActiveTool, 
     penColor, penSize, setPenColor, setPenSize,
     lassoMode, setLassoMode,
+    eraserMode, setEraserMode, eraserSize, setEraserSize,
     showRulers, setShowRulers
   } = useCanvasStore();
 
@@ -149,6 +150,47 @@ export default function CanvasLeftSidebar() {
               Freehand
             </button>
           </div>
+        </div>
+      )}
+
+      {activeTool === 'eraser' && (
+        <div 
+          className="absolute bg-[#2a2a2d] border border-white/10 rounded-lg shadow-xl p-3 flex flex-col gap-3 w-48 z-50"
+          style={{ left: '60px', top: '13rem' }}
+        >
+          <div className="text-xs font-semibold text-white/80 uppercase tracking-wider">Eraser</div>
+          
+          <div className="flex flex-col gap-2 mt-1">
+            <button
+              onClick={() => setEraserMode('freehand')}
+              className={`text-left px-2 py-1.5 rounded text-xs transition-colors ${eraserMode === 'freehand' ? 'bg-blue-600 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+            >
+              Freehand Brush
+            </button>
+            <button
+              onClick={() => setEraserMode('object')}
+              className={`text-left px-2 py-1.5 rounded text-xs transition-colors ${eraserMode === 'object' ? 'bg-blue-600 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
+            >
+              Select to Erase
+            </button>
+          </div>
+
+          {eraserMode === 'freehand' && (
+            <div className="flex flex-col gap-1 mt-2">
+              <label className="flex justify-between text-xs text-white/60">
+                <span>Size</span>
+                <span>{eraserSize}px</span>
+              </label>
+              <input 
+                type="range" 
+                min="1" 
+                max="100" 
+                value={eraserSize}
+                onChange={(e) => setEraserSize(parseInt(e.target.value))}
+                className="w-full accent-blue-500"
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

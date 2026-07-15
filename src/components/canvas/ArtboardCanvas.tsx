@@ -31,7 +31,7 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
   const lassoPoints = useRef<{x: number, y: number}[]>([]);
   const lastMousePos = useRef<{x: number, y: number} | null>(null);
 
-  const { addLayer, removeLayer, setActiveLayer, updateLayer, setLayers, layers, initialImageDataUrl, activeTool, setActiveTool, penColor, penSize, setPenColor, lassoMode, markCanvasDirty } =
+  const { addLayer, removeLayer, setActiveLayer, updateLayer, setLayers, layers, initialImageDataUrl, activeTool, setActiveTool, penColor, penSize, setPenColor, lassoMode, eraserMode, eraserSize, markCanvasDirty } =
     useCanvasStore();
 
   const syncLayers = useCallback(
@@ -307,7 +307,12 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
       const path = e.path;
       if (path) {
         path._canvasLayerId = uuidv4();
-        path._layerName = 'Pen Stroke';
+        if (useCanvasStore.getState().activeTool === 'eraser') {
+          path.globalCompositeOperation = 'destination-out';
+          path._layerName = 'Eraser Stroke';
+        } else {
+          path._layerName = 'Pen Stroke';
+        }
       }
     });
 
@@ -400,7 +405,7 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
     if (!canvas) return;
 
     // Reset everything first
-    if (activeTool !== 'pen') {
+    if (activeTool !== 'pen' && !(activeTool === 'eraser' && eraserMode === 'freehand')) {
       canvas.isDrawingMode = false;
     }
     
@@ -470,7 +475,7 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
           canvas.requestRenderAll();
         }
       } else if (activeTool === 'eraser') {
-        if (o.target) {
+        if (eraserMode === 'object' && o.target) {
           const layerId = o.target._canvasLayerId;
           canvas.remove(o.target);
           if (layerId) removeLayer(layerId);
@@ -660,6 +665,14 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
     } else if (activeTool === 'eraser') {
       canvas.defaultCursor = 'crosshair';
       canvas.selection = false;
+      if (eraserMode === 'freehand') {
+        canvas.isDrawingMode = true;
+        if (!canvas.freeDrawingBrush) {
+          canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+        }
+        canvas.freeDrawingBrush.color = '#FFFFFF';
+        canvas.freeDrawingBrush.width = eraserSize;
+      }
     } else if (activeTool === 'type_path') {
       canvas.defaultCursor = 'crosshair';
       canvas.selection = false;
@@ -700,7 +713,7 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
         canvas.requestRenderAll();
       }
     };
-  }, [activeTool, setActiveTool, penColor, penSize, syncLayers, removeLayer, lassoMode]);
+  }, [activeTool, setActiveTool, penColor, penSize, syncLayers, removeLayer, lassoMode, eraserMode, eraserSize]);
 
   useEffect(() => {
     if (!globalFabricCanvas) return;

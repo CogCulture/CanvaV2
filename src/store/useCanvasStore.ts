@@ -101,6 +101,10 @@ export interface CanvasState {
   penSize: number;
   setPenColor: (color: string) => void;
   setPenSize: (size: number) => void;
+  eraserMode: 'freehand' | 'object';
+  setEraserMode: (mode: 'freehand' | 'object') => void;
+  eraserSize: number;
+  setEraserSize: (size: number) => void;
   lassoMode: 'magnetic' | 'polygon' | 'freehand';
   setLassoMode: (mode: 'magnetic' | 'polygon' | 'freehand') => void;
   openSetupModal: (imagePath: string, imageDataUrl?: string) => void;
@@ -181,13 +185,17 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   pendingImageDataUrl: null,
   pendingRestoredCanvas: null,
   activeTool: 'move',
-  penColor: '#000000',
-  penSize: 4,
+  penColor: '#3B82F6',
+  penSize: 10,
   imageEditLayerId: null,
   imageEditDataUrl: null,
   setActiveTool: (tool) => set({ activeTool: tool }),
   setPenColor: (color) => set({ penColor: color }),
   setPenSize: (size) => set({ penSize: size }),
+  eraserMode: 'freehand',
+  setEraserMode: (mode) => set({ eraserMode: mode }),
+  eraserSize: 20,
+  setEraserSize: (size) => set({ eraserSize: size }),
   lassoMode: 'freehand',
   setLassoMode: (mode) => set({ lassoMode: mode }),
   openSetupModal: (imagePath, imageDataUrl) =>
