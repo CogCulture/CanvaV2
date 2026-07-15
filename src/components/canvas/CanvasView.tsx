@@ -259,7 +259,6 @@ export default function CanvasView() {
         
         {/* Canvas center + bottom filmstrip */}
         <div className="flex-1 flex flex-col min-w-0 relative overflow-hidden">
-          <CanvasRulers canvasContainerRef={containerRef} fabricCanvas={canvas} unit={rulerUnit} />
           <div 
             ref={containerRef}
             className="flex-1 min-h-0 overflow-auto relative"
@@ -312,6 +311,7 @@ export default function CanvasView() {
               </div>
             )}
           </div>
+          <CanvasRulers canvasContainerRef={containerRef} fabricCanvas={canvas} unit={rulerUnit} />
         </div>
 
         {/* Right panel */}

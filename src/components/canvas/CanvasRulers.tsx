@@ -232,10 +232,13 @@ export default function CanvasRulers({ canvasContainerRef, fabricCanvas, unit }:
                 draggable={!g.locked}
               >
                 <div 
-                  className={`${activeGuideId === g.id ? 'bg-blue-400 opacity-100' : 'bg-cyan-400 opacity-70'} group-hover:opacity-100 shadow-[0_0_2px_rgba(0,0,0,0.5)]`}
+                  className="group-hover:opacity-100 transition-opacity"
                   style={{
                     [g.axis === 'vertical' ? 'width' : 'height']: 1,
                     [g.axis === 'vertical' ? 'height' : 'width']: '100%',
+                    backgroundColor: activeGuideId === g.id ? '#60a5fa' : '#22d3ee',
+                    opacity: activeGuideId === g.id ? 1 : 0.7,
+                    boxShadow: '0 0 2px rgba(0,0,0,0.5)'
                   }}
                 />
                 
