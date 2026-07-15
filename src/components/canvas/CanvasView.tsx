@@ -8,6 +8,7 @@ import { useThumbnails } from '../../hooks/useThumbnails';
 import { useSortedLibrary } from '../../hooks/useSortedLibrary';
 import { ImageFile } from '../ui/AppProperties';
 import CanvasMenuBar from './CanvasMenuBar';
+import { useCanvasHistory } from '../../hooks/useCanvasHistory';
 import ArtboardCanvas from './ArtboardCanvas';
 import CanvasPropertiesPanel from './CanvasPropertiesPanel';
 import LayersPanel from './LayersPanel';
@@ -89,10 +90,7 @@ export default function CanvasView() {
     canvas.requestRenderAll();
   }, [canvas, artboardWidth, artboardHeight]);
 
-  const handleUndo = useCallback(() => {
-    // TODO: implement history
-  }, []);
-  const handleRedo = useCallback(() => {}, []);
+  const { handleUndo, handleRedo, canUndo, canRedo } = useCanvasHistory(canvas);
 
   const handleAddImage = useCallback(() => {
     fileInputRef.current?.click();
@@ -139,6 +137,16 @@ export default function CanvasView() {
       
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+
+      if (cmdOrCtrl && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        handleUndo();
+      }
+
+      if ((cmdOrCtrl && e.key.toLowerCase() === 'y') || (cmdOrCtrl && e.shiftKey && e.key.toLowerCase() === 'z')) {
+        e.preventDefault();
+        handleRedo();
+      }
 
       if (cmdOrCtrl && e.key.toLowerCase() === 'c') {
          const obj = canvas.getActiveObject();
