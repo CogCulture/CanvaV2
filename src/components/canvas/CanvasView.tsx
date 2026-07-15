@@ -133,22 +133,35 @@ export default function CanvasView() {
   useEffect(() => {
     if (!canvas) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+      // Don't trigger if typing in an input or contenteditable
+      if (
+        e.target instanceof HTMLInputElement ||
+        e.target instanceof HTMLTextAreaElement ||
+        (e.target as HTMLElement).isContentEditable
+      ) {
+        return;
+      }
       
       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
       const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
-
+      
       if (cmdOrCtrl && !e.shiftKey && e.key.toLowerCase() === 'z') {
         e.preventDefault();
         handleUndo();
-      }
-
-      if ((cmdOrCtrl && e.key.toLowerCase() === 'y') || (cmdOrCtrl && e.shiftKey && e.key.toLowerCase() === 'z')) {
+      } else if (
+        (cmdOrCtrl && e.shiftKey && e.key.toLowerCase() === 'z') ||
+        (cmdOrCtrl && e.key.toLowerCase() === 'y')
+      ) {
         e.preventDefault();
         handleRedo();
-      }
-
-      if (cmdOrCtrl && e.key.toLowerCase() === 'c') {
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        const active = canvas?.getActiveObjects() || [];
+        if (active.length) {
+          active.forEach(o => canvas?.remove(o));
+          canvas?.discardActiveObject();
+          canvas?.requestRenderAll();
+        }
+      } else if (cmdOrCtrl && e.key.toLowerCase() === 'c') {
          const obj = canvas.getActiveObject();
          if (obj) {
             obj.clone().then((cloned: fabric.Object) => {
@@ -183,7 +196,7 @@ export default function CanvasView() {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [canvas]);
+  }, [canvas, handleUndo, handleRedo]);
 
   return (
     <div

@@ -616,6 +616,7 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
         currentShape.current.set({ selectable: true });
         currentShape.current.setCoords();
         canvas.setActiveObject(currentShape.current);
+        canvas.fire('object:modified', { target: currentShape.current });
         currentShape.current = null;
         syncLayers(canvas);
         setActiveTool('move'); // Switch back to move tool

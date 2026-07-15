@@ -90,6 +90,7 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
       obj.set({ [key]: value } as any);
     }
     obj.setCoords();
+    canvas.fire('object:modified', { target: obj });
     canvas.renderAll();
     readProps();
   };

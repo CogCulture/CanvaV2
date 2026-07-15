@@ -5,8 +5,7 @@ import { useCanvasStore } from '../store/useCanvasStore';
 const MAX_HISTORY = 50;
 
 export const useCanvasHistory = (canvas: fabric.Canvas | null) => {
-  const [history, setHistory] = useState<string[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  const [state, setState] = useState<{ history: string[], index: number }>({ history: [], index: -1 });
   const isProcessingRef = useRef(false);
 
   const saveHistory = useCallback(() => {
@@ -15,9 +14,9 @@ export const useCanvasHistory = (canvas: fabric.Canvas | null) => {
     // Save state with custom properties
     const json = JSON.stringify(canvas.toObject(['_canvasLayerId', '_layerName', '_sourceFilePath', '_sourceDataUrl', '_adjustments', '_originalDataUrl']));
     
-    setHistory(prev => {
+    setState(prev => {
       // Discard any redos if we make a new change
-      const newHistory = prev.slice(0, historyIndex + 1);
+      const newHistory = prev.history.slice(0, prev.index + 1);
       
       // Don't save if state hasn't changed (e.g. just selecting an object)
       if (newHistory.length > 0 && newHistory[newHistory.length - 1] === json) {
@@ -28,19 +27,17 @@ export const useCanvasHistory = (canvas: fabric.Canvas | null) => {
       // Cap at MAX_HISTORY
       if (newHistory.length > MAX_HISTORY) {
         newHistory.shift();
-      } else {
-        setHistoryIndex(newHistory.length - 1);
       }
-      return newHistory;
+      return { history: newHistory, index: newHistory.length - 1 };
     });
-  }, [canvas, historyIndex]);
+  }, [canvas]);
 
   // Initial save when canvas is ready
   useEffect(() => {
-    if (canvas && history.length === 0) {
+    if (canvas && state.history.length === 0) {
       saveHistory();
     }
-  }, [canvas, history.length, saveHistory]);
+  }, [canvas, state.history.length, saveHistory]);
 
   // Attach listeners to canvas events
   useEffect(() => {
@@ -67,12 +64,12 @@ export const useCanvasHistory = (canvas: fabric.Canvas | null) => {
   }, [canvas, saveHistory]);
 
   const handleUndo = useCallback(() => {
-    if (!canvas || historyIndex <= 0 || isProcessingRef.current) return;
+    if (!canvas || state.index <= 0 || isProcessingRef.current) return;
     
     isProcessingRef.current = true;
-    const newIndex = historyIndex - 1;
+    const newIndex = state.index - 1;
     
-    canvas.loadFromJSON(history[newIndex]).then(() => {
+    canvas.loadFromJSON(state.history[newIndex]).then(() => {
       canvas.renderAll();
       
       const objects = canvas.getObjects().filter((o: any) => o._canvasLayerId);
@@ -83,22 +80,24 @@ export const useCanvasHistory = (canvas: fabric.Canvas | null) => {
         visible: obj.visible ?? true,
         locked: !obj.selectable,
         opacity: obj.opacity ?? 1,
-        type: obj.type === 'i-text' ? 'text' : obj.type === 'rect' || obj.type === 'circle' ? 'shape' : 'image',
+        type: (obj.type === 'image' ? 'image' : (obj.type === 'i-text' || obj.type === 'textbox' || obj.type === 'text') ? 'text' : 'shape') as any,
+        thumbnail: obj.type === 'image' && typeof obj.getSrc === 'function' ? obj.getSrc() : obj._sourceDataUrl,
       }));
       useCanvasStore.getState().setLayers(restoredLayers as any);
       
-      setHistoryIndex(newIndex);
+      setState(prev => ({ ...prev, index: newIndex }));
+    }).finally(() => {
       isProcessingRef.current = false;
     });
-  }, [canvas, history, historyIndex]);
+  }, [canvas, state.history, state.index]);
 
   const handleRedo = useCallback(() => {
-    if (!canvas || historyIndex >= history.length - 1 || isProcessingRef.current) return;
+    if (!canvas || state.index >= state.history.length - 1 || isProcessingRef.current) return;
     
     isProcessingRef.current = true;
-    const newIndex = historyIndex + 1;
+    const newIndex = state.index + 1;
     
-    canvas.loadFromJSON(history[newIndex]).then(() => {
+    canvas.loadFromJSON(state.history[newIndex]).then(() => {
       canvas.renderAll();
       
       const objects = canvas.getObjects().filter((o: any) => o._canvasLayerId);
@@ -109,19 +108,21 @@ export const useCanvasHistory = (canvas: fabric.Canvas | null) => {
         visible: obj.visible ?? true,
         locked: !obj.selectable,
         opacity: obj.opacity ?? 1,
-        type: obj.type === 'i-text' ? 'text' : obj.type === 'rect' || obj.type === 'circle' ? 'shape' : 'image',
+        type: (obj.type === 'image' ? 'image' : (obj.type === 'i-text' || obj.type === 'textbox' || obj.type === 'text') ? 'text' : 'shape') as any,
+        thumbnail: obj.type === 'image' && typeof obj.getSrc === 'function' ? obj.getSrc() : obj._sourceDataUrl,
       }));
       useCanvasStore.getState().setLayers(restoredLayers as any);
       
-      setHistoryIndex(newIndex);
+      setState(prev => ({ ...prev, index: newIndex }));
+    }).finally(() => {
       isProcessingRef.current = false;
     });
-  }, [canvas, history, historyIndex]);
+  }, [canvas, state.history, state.index]);
 
   return {
     handleUndo,
     handleRedo,
-    canUndo: historyIndex > 0,
-    canRedo: historyIndex < history.length - 1
+    canUndo: state.index > 0,
+    canRedo: state.index < state.history.length - 1
   };
 };

@@ -137,6 +137,7 @@ function LayerRow({ layer }: { layer: CanvasLayer }) {
     const obj = getFabricObj() as any;
     if (obj) {
       obj.visible = !layer.visible;
+      globalFabricCanvas?.fire('object:modified', { target: obj });
       globalFabricCanvas?.renderAll();
     }
     updateLayer(layer.id, { visible: !layer.visible });
@@ -148,6 +149,7 @@ function LayerRow({ layer }: { layer: CanvasLayer }) {
     if (obj) {
       obj.selectable = layer.locked;
       obj.evented = layer.locked;
+      globalFabricCanvas?.fire('object:modified', { target: obj });
       globalFabricCanvas?.renderAll();
     }
     updateLayer(layer.id, { locked: !layer.locked });
