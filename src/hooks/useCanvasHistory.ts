@@ -72,12 +72,9 @@ export const useCanvasHistory = (canvas: fabric.Canvas | null) => {
     isProcessingRef.current = true;
     const newIndex = historyIndex - 1;
     
-    canvas.loadFromJSON(history[newIndex], () => {
+    canvas.loadFromJSON(history[newIndex]).then(() => {
       canvas.renderAll();
       
-      // Update layers in the store based on the restored objects
-      // Note: ArtboardCanvas's `syncLayers` will be called on next render or by polling if needed,
-      // but we can manually trigger a small update to force re-render.
       const objects = canvas.getObjects().filter((o: any) => o._canvasLayerId);
       const restoredLayers = objects.map((obj: any) => ({
         id: obj._canvasLayerId as string,
@@ -101,7 +98,7 @@ export const useCanvasHistory = (canvas: fabric.Canvas | null) => {
     isProcessingRef.current = true;
     const newIndex = historyIndex + 1;
     
-    canvas.loadFromJSON(history[newIndex], () => {
+    canvas.loadFromJSON(history[newIndex]).then(() => {
       canvas.renderAll();
       
       const objects = canvas.getObjects().filter((o: any) => o._canvasLayerId);
