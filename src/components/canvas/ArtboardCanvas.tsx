@@ -293,15 +293,16 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
     };
     window.addEventListener('keydown', handleEnter);
 
+    const updateSelection = () => {
+      const activeObjects = canvas.getActiveObjects();
+      const ids = activeObjects.map((obj: any) => obj._canvasLayerId).filter(Boolean);
+      if (ids.length > 0) setActiveLayers(ids);
+      else setActiveLayers([]);
+    };
+
     // ── Selection sync ────────────────────────────────────────────────
-    canvas.on('selection:created', (e: any) => {
-      const ids = e.selected?.map((obj: any) => obj._canvasLayerId).filter(Boolean) || [];
-      if (ids.length > 0) setActiveLayers(ids);
-    });
-    canvas.on('selection:updated', (e: any) => {
-      const ids = e.selected?.map((obj: any) => obj._canvasLayerId).filter(Boolean) || [];
-      if (ids.length > 0) setActiveLayers(ids);
-    });
+    canvas.on('selection:created', updateSelection);
+    canvas.on('selection:updated', updateSelection);
     canvas.on('selection:cleared', () => setActiveLayers([]));
 
     canvas.on('path:created', (e: any) => {
