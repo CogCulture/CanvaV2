@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useState } from 'react';
 import * as fabric from 'fabric';
 import { useCanvasStore, CanvasLayer } from '../../store/useCanvasStore';
 import { useProcessStore } from '../../store/useProcessStore';
@@ -33,7 +33,7 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
   const lassoPoints = useRef<{x: number, y: number}[]>([]);
   const lastMousePos = useRef<{x: number, y: number} | null>(null);
 
-  const { addLayer, removeLayer, setActiveLayer, setActiveLayers, updateLayer, setLayers, layers, initialImageDataUrl, activeTool, setActiveTool, penColor, penSize, setPenColor, lassoMode, eraserMode, eraserSize, markCanvasDirty } =
+  const { activeLayerIds, addLayer, removeLayer, setActiveLayer, setActiveLayers, updateLayer, setLayers, layers, initialImageDataUrl, activeTool, setActiveTool, penColor, penSize, setPenColor, lassoMode, eraserMode, eraserSize, markCanvasDirty } =
     useCanvasStore();
 
   const syncLayers = useCallback(
