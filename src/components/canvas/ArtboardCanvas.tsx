@@ -14,120 +14,116 @@ interface ArtboardCanvasProps {
 export let globalFabricCanvas: fabric.Canvas | null = null;
 
 /**
- * Bakes an eraser stroke into each canvas object it intersects by updating
- * that object's clipPath mask. The eraser path is then removed from the canvas.
- * This makes erasing truly destructive — the erased region travels with the
- * object when it is moved, and no "Eraser Stroke" layer appears.
+ * Bakes an eraser stroke (given as scene-coordinate points) into each
+ * canvas object it intersects by updating that object's clipPath mask.
+ * This makes erasing truly destructive — the erased region travels with
+ * the object when moved, and no "Eraser Stroke" layer appears.
  */
-function applyEraserStroke(canvas: fabric.Canvas, eraserPath: fabric.Path) {
+function applyEraserStroke(
+  canvas: fabric.Canvas,
+  points: {x: number; y: number}[],
+  brushSize: number,
+) {
+  if (points.length < 1) return;
+
   const zoom = canvas.getZoom();
   const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
 
-  // getBoundingRect(true) returns coords in screen pixels (with zoom+pan)
-  // getBoundingRect(false) returns coords in canvas scene units (no pan, with zoom)
-  // We want scene units for positioning, and need to handle retina ourselves.
+  // Build a bounding rect of the eraser stroke in scene coords
+  const xs = points.map(p => p.x);
+  const ys = points.map(p => p.y);
+  const brushRadius = brushSize / 2;
+  const strokeSceneLeft   = Math.min(...xs) - brushRadius;
+  const strokeSceneTop    = Math.min(...ys) - brushRadius;
+  const strokeSceneRight  = Math.max(...xs) + brushRadius;
+  const strokeSceneBottom = Math.max(...ys) + brushRadius;
 
-  // Collect all objects that have a layerId (real user layers) and overlap the eraser
+  // Convert to screen pixels for intersection check (same space as getBoundingRect())
+  const strokeScreenLeft   = strokeSceneLeft   * zoom + vpt[4];
+  const strokeScreenTop    = strokeSceneTop    * zoom + vpt[5];
+  const strokeScreenRight  = strokeSceneRight  * zoom + vpt[4];
+  const strokeScreenBottom = strokeSceneBottom * zoom + vpt[5];
+
+  // Collect objects that overlap the eraser stroke
   const targets = canvas.getObjects().filter((obj: any) => {
     if (!obj._canvasLayerId) return false;
-    if (obj === eraserPath) return false;
-    const eb = eraserPath.getBoundingRect();
-    const ob = obj.getBoundingRect();
+    const ob = obj.getBoundingRect(); // screen pixels
     return (
-      eb.left < ob.left + ob.width &&
-      eb.left + eb.width > ob.left &&
-      eb.top < ob.top + ob.height &&
-      eb.top + eb.height > ob.top
+      strokeScreenLeft   < ob.left + ob.width  &&
+      strokeScreenRight  > ob.left              &&
+      strokeScreenTop    < ob.top  + ob.height  &&
+      strokeScreenBottom > ob.top
     );
   });
 
-  if (targets.length === 0) {
-    canvas.remove(eraserPath);
-    canvas.requestRenderAll();
-    return;
-  }
+  if (targets.length === 0) return;
 
   let pending = targets.length;
 
   targets.forEach((obj: any) => {
-    // Bounding rect in canvas screen-pixel coords (includes zoom and pan offset)
-    const ob = obj.getBoundingRect(true);
-    const pad = Math.max(eraserPath.strokeWidth ?? 20, 4);
-
-    // The offscreen canvas is in screen pixels so the eraser stroke resolution matches
-    const maskW = Math.max(1, Math.ceil(ob.width + pad * 2));
-    const maskH = Math.max(1, Math.ceil(ob.height + pad * 2));
-    // Top-left of mask in screen pixel coords
-    const maskLeft = ob.left - pad;
-    const maskTop  = ob.top  - pad;
+    // Object bounding rect in screen pixels
+    const ob = obj.getBoundingRect();
+    const pad = brushSize;
+    const maskLeft   = ob.left   - pad;
+    const maskTop    = ob.top    - pad;
+    const maskWidth  = Math.max(1, Math.ceil(ob.width  + pad * 2));
+    const maskHeight = Math.max(1, Math.ceil(ob.height + pad * 2));
 
     const offscreen = document.createElement('canvas');
-    offscreen.width  = maskW;
-    offscreen.height = maskH;
+    offscreen.width  = maskWidth;
+    offscreen.height = maskHeight;
     const ctx = offscreen.getContext('2d')!;
 
-    // Restore existing mask so multiple eraser strokes accumulate
+    // Start from existing mask or white (= fully visible)
     if (obj.clipPath && (obj.clipPath as any)._eraserMask) {
-      ctx.drawImage((obj.clipPath as any)._eraserMask, 0, 0, maskW, maskH);
+      ctx.drawImage((obj.clipPath as any)._eraserMask, 0, 0, maskWidth, maskHeight);
     } else {
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, maskW, maskH);
+      ctx.fillRect(0, 0, maskWidth, maskHeight);
     }
 
-    // --- Draw the eraser stroke in black onto the mask ---
-    // Fabric's clipPath clips using the ALPHA channel of the clipPath image:
-    //   opaque pixels  → object pixels are SHOWN
-    //   transparent px → object pixels are HIDDEN (clipped out)
-    //
-    // So we start with a fully opaque white mask (= all visible), then
-    // punch transparent holes using `destination-out` where we erase.
-    //
-    // The eraserPath SVG path data is in Fabric SCENE coordinates.
-    // Transform: scene → screen pixel → mask-local pixel:
+    // --- Punch out the eraser stroke using destination-out ---
+    // Points are in scene coords. Transform to mask-local screen pixels:
     //   screenX = sceneX * zoom + vpt[4]
     //   maskLocalX = screenX - maskLeft
-    //   Combined: tx = vpt[4] - maskLeft,  scale = zoom
-    const svgStr = eraserPath.toSVG();
-    const parser = new DOMParser();
-    const svgDoc = parser.parseFromString(
-      `<svg xmlns="http://www.w3.org/2000/svg">${svgStr}</svg>`,
-      'image/svg+xml'
-    );
-    const pathEl = svgDoc.querySelector('path');
-    if (pathEl) {
-      const d = pathEl.getAttribute('d') || '';
-      const p2d = new Path2D(d);
+    if (points.length > 0) {
       ctx.save();
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.translate(vpt[4] - maskLeft, vpt[5] - maskTop);
-      ctx.scale(zoom, zoom);
       ctx.strokeStyle = 'rgba(0,0,0,1)';
-      ctx.fillStyle   = 'rgba(0,0,0,1)';
-      ctx.lineWidth   = (eraserPath.strokeWidth ?? 20);
+      ctx.lineWidth   = brushSize * zoom;   // convert scene brush size → screen px
       ctx.lineCap     = 'round';
       ctx.lineJoin    = 'round';
-      ctx.stroke(p2d);
+      ctx.beginPath();
+      const toMask = (p: {x: number; y: number}) => ({
+        x: p.x * zoom + vpt[4] - maskLeft,
+        y: p.y * zoom + vpt[5] - maskTop,
+      });
+      const first = toMask(points[0]);
+      ctx.moveTo(first.x, first.y);
+      for (let i = 1; i < points.length; i++) {
+        const pt = toMask(points[i]);
+        ctx.lineTo(pt.x, pt.y);
+      }
+      ctx.stroke();
       ctx.restore();
     }
 
-    // --- Convert mask to Fabric clipPath ---
+    // --- Apply mask as Fabric clipPath (absolutePositioned = true) ---
     const dataUrl = offscreen.toDataURL();
     fabric.FabricImage.fromURL(dataUrl).then((maskImg: any) => {
-      // absolutePositioned: true → Fabric interprets left/top in canvas SCENE coords.
-      // The mask covers the object at maskLeft/maskTop in screen px.
-      // Scene coords: sceneX = (screenX - vpt[4]) / zoom
+      // With absolutePositioned:true, Fabric interprets left/top in scene coords
       const sceneLeft = (maskLeft - vpt[4]) / zoom;
       const sceneTop  = (maskTop  - vpt[5]) / zoom;
-      const sceneW    = maskW / zoom;
-      const sceneH    = maskH / zoom;
+      const sceneW    = maskWidth  / zoom;
+      const sceneH    = maskHeight / zoom;
 
       maskImg.set({
         originX: 'left',
         originY: 'top',
-        left: sceneLeft,
-        top:  sceneTop,
-        scaleX: sceneW / (maskImg.width  || maskW),
-        scaleY: sceneH / (maskImg.height || maskH),
+        left:   sceneLeft,
+        top:    sceneTop,
+        scaleX: sceneW / (maskImg.width  || maskWidth),
+        scaleY: sceneH / (maskImg.height || maskHeight),
         absolutePositioned: true,
       });
       maskImg._eraserMask = offscreen;
@@ -138,9 +134,6 @@ function applyEraserStroke(canvas: fabric.Canvas, eraserPath: fabric.Path) {
       if (pending === 0) canvas.requestRenderAll();
     });
   });
-
-  // Remove the eraser path immediately — it must NOT persist as a layer
-  canvas.remove(eraserPath);
 }
 
 export default function ArtboardCanvas({ width, height, onCanvasReady }: ArtboardCanvasProps) {
@@ -157,6 +150,10 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
   const currentShape = useRef<any>(null);
   const dimensionLabel = useRef<fabric.Text | null>(null);
 
+  // Eraser freehand state
+  const isEraserDrawing = useRef(false);
+  const eraserPoints = useRef<{x: number; y: number}[]>([]);
+  const eraserCursorPos = useRef<{x: number; y: number} | null>(null);
 
   // Lasso state
   const isLassoing = useRef(false);
@@ -462,18 +459,9 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
     canvas.on('path:created', (e: any) => {
       const path = e.path;
       if (!path) return;
-
-      if (useCanvasStore.getState().activeTool === 'eraser') {
-        // Real destructive erase: bake the stroke into each intersected object
-        // as a clipPath mask, then remove the path. No eraser layer is created.
-        applyEraserStroke(canvas, path);
-        // syncLayers will be triggered by object:modified after clipPath update
-        setTimeout(() => syncLayers(canvas), 50);
-      } else {
-        // Pen stroke — treat as a real layer
-        path._canvasLayerId = uuidv4();
-        path._layerName = 'Pen Stroke';
-      }
+      // Eraser no longer uses isDrawingMode, so only pen strokes reach here
+      path._canvasLayerId = uuidv4();
+      path._layerName = 'Pen Stroke';
     });
 
     canvas.on('object:modified', () => { syncLayers(canvas); markCanvasDirty(); });
@@ -585,6 +573,15 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
     });
 
     const onMouseDown = (o: any) => {
+      if (activeTool === 'eraser' && eraserMode === 'freehand') {
+        isEraserDrawing.current = true;
+        const pointer = o.scenePoint || o.pointer;
+        if (pointer) {
+          eraserPoints.current = [{ x: pointer.x, y: pointer.y }];
+          eraserCursorPos.current = { x: pointer.x, y: pointer.y };
+        }
+        return;
+      }
       if (activeTool === 'rect' || activeTool === 'ellipse') {
         isDrawingShape.current = true;
         const pointer = o.scenePoint || o.pointer || (canvas.getPointer ? canvas.getPointer(o.e) : {x:0,y:0});
@@ -704,6 +701,17 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
     };
 
     const onMouseMove = (o: any) => {
+      if (activeTool === 'eraser' && eraserMode === 'freehand') {
+        const pointer = o.scenePoint || o.pointer;
+        if (pointer) {
+          eraserCursorPos.current = { x: pointer.x, y: pointer.y };
+          if (isEraserDrawing.current) {
+            eraserPoints.current.push({ x: pointer.x, y: pointer.y });
+          }
+          canvas.requestRenderAll();
+        }
+        return;
+      }
       if (isDrawingShape.current && currentShape.current) {
         const pointer = o.scenePoint || o.pointer || (canvas.getPointer ? canvas.getPointer(o.e) : {x:0,y:0});
         const { x: startX, y: startY } = startPos.current;
@@ -811,6 +819,17 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
     };
 
     const onMouseUp = () => {
+      if (activeTool === 'eraser' && eraserMode === 'freehand' && isEraserDrawing.current) {
+        isEraserDrawing.current = false;
+        const pts = eraserPoints.current;
+        eraserPoints.current = [];
+        if (pts.length > 0) {
+          applyEraserStroke(canvas, pts, useCanvasStore.getState().eraserSize);
+          setTimeout(() => syncLayers(canvas), 60);
+        }
+        canvas.requestRenderAll();
+        return;
+      }
       if (isDrawingShape.current && currentShape.current) {
         isDrawingShape.current = false;
         currentShape.current.set({ selectable: true });
@@ -862,16 +881,9 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
       canvas.freeDrawingBrush.color = penColor;
       canvas.freeDrawingBrush.width = penSize;
     } else if (activeTool === 'eraser') {
-      canvas.defaultCursor = 'crosshair';
+      canvas.defaultCursor = 'none';
       canvas.selection = false;
-      if (eraserMode === 'freehand') {
-        canvas.isDrawingMode = true;
-        if (!canvas.freeDrawingBrush) {
-          canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-        }
-        canvas.freeDrawingBrush.color = '#FFFFFF';
-        canvas.freeDrawingBrush.width = eraserSize;
-      }
+      canvas.isDrawingMode = false;  // Never use drawing mode — it paints on the canvas
     } else if (activeTool === 'type_path') {
       canvas.defaultCursor = 'crosshair';
       canvas.selection = false;
@@ -918,16 +930,52 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
     if (!globalFabricCanvas) return;
     const canvas = globalFabricCanvas;
     
-    // Draw Lasso overlay directly to canvas context
+    // Draw Lasso overlay AND eraser cursor directly to canvas context
     const renderLasso = (opt: any) => {
-      const { activeTool, lassoMode } = useCanvasStore.getState();
-      if ((activeTool !== 'lasso' && activeTool !== 'type_path') || lassoPoints.current.length === 0) return;
-      
+      const { activeTool, lassoMode, eraserSize } = useCanvasStore.getState();
       const ctx = opt.ctx;
       if (!ctx) return;
-      
+
+      // --- Eraser cursor circle + live stroke preview ---
+      if (activeTool === 'eraser') {
+        const cursorPos = eraserCursorPos.current;
+        if (!cursorPos) return;
+
+        const zoom = canvas.getZoom() || 1;
+        const vpt = canvas.viewportTransform;
+
+        ctx.save();
+        if (vpt) ctx.transform(vpt[0], vpt[1], vpt[2], vpt[3], vpt[4], vpt[5]);
+
+        // Live stroke preview while drawing
+        if (isEraserDrawing.current && eraserPoints.current.length > 1) {
+          ctx.beginPath();
+          ctx.moveTo(eraserPoints.current[0].x, eraserPoints.current[0].y);
+          for (let i = 1; i < eraserPoints.current.length; i++) {
+            ctx.lineTo(eraserPoints.current[i].x, eraserPoints.current[i].y);
+          }
+          ctx.strokeStyle = 'rgba(100,100,100,0.5)';
+          ctx.lineWidth = eraserSize;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+          ctx.stroke();
+        }
+
+        // Cursor ring
+        ctx.beginPath();
+        ctx.arc(cursorPos.x, cursorPos.y, eraserSize / 2, 0, Math.PI * 2);
+        ctx.strokeStyle = '#333333';
+        ctx.lineWidth = 1.5 / zoom;
+        ctx.setLineDash([]);
+        ctx.stroke();
+
+        ctx.restore();
+        return;
+      }
+
+      if ((activeTool !== 'lasso' && activeTool !== 'type_path') || lassoPoints.current.length === 0) return;
+
       ctx.save();
-      
       // Transform context to canvas viewport to match pointer coordinates correctly
       const vpt = canvas.viewportTransform;
       if (vpt) {
