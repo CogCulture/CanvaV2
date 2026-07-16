@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import * as fabric from 'fabric';
 import { useCanvasStore, CanvasLayer } from '../../store/useCanvasStore';
 import { useProcessStore } from '../../store/useProcessStore';
@@ -13,6 +13,136 @@ interface ArtboardCanvasProps {
 
 export let globalFabricCanvas: fabric.Canvas | null = null;
 
+/**
+ * Bakes an eraser stroke into each canvas object it intersects by updating
+ * that object's clipPath mask. The eraser path is then removed from the canvas.
+ * This makes erasing truly destructive — the erased region travels with the
+ * object when it is moved, and no "Eraser Stroke" layer appears.
+ */
+function applyEraserStroke(canvas: fabric.Canvas, eraserPath: fabric.Path) {
+  const zoom = canvas.getZoom();
+  const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+
+  // getBoundingRect(true) returns coords in screen pixels (with zoom+pan)
+  // getBoundingRect(false) returns coords in canvas scene units (no pan, with zoom)
+  // We want scene units for positioning, and need to handle retina ourselves.
+
+  // Collect all objects that have a layerId (real user layers) and overlap the eraser
+  const targets = canvas.getObjects().filter((obj: any) => {
+    if (!obj._canvasLayerId) return false;
+    if (obj === eraserPath) return false;
+    const eb = eraserPath.getBoundingRect();
+    const ob = obj.getBoundingRect();
+    return (
+      eb.left < ob.left + ob.width &&
+      eb.left + eb.width > ob.left &&
+      eb.top < ob.top + ob.height &&
+      eb.top + eb.height > ob.top
+    );
+  });
+
+  if (targets.length === 0) {
+    canvas.remove(eraserPath);
+    canvas.requestRenderAll();
+    return;
+  }
+
+  let pending = targets.length;
+
+  targets.forEach((obj: any) => {
+    // Bounding rect in canvas screen-pixel coords (includes zoom and pan offset)
+    const ob = obj.getBoundingRect(true);
+    const pad = Math.max(eraserPath.strokeWidth ?? 20, 4);
+
+    // The offscreen canvas is in screen pixels so the eraser stroke resolution matches
+    const maskW = Math.max(1, Math.ceil(ob.width + pad * 2));
+    const maskH = Math.max(1, Math.ceil(ob.height + pad * 2));
+    // Top-left of mask in screen pixel coords
+    const maskLeft = ob.left - pad;
+    const maskTop  = ob.top  - pad;
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width  = maskW;
+    offscreen.height = maskH;
+    const ctx = offscreen.getContext('2d')!;
+
+    // Restore existing mask so multiple eraser strokes accumulate
+    if (obj.clipPath && (obj.clipPath as any)._eraserMask) {
+      ctx.drawImage((obj.clipPath as any)._eraserMask, 0, 0, maskW, maskH);
+    } else {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, maskW, maskH);
+    }
+
+    // --- Draw the eraser stroke in black onto the mask ---
+    // Fabric's clipPath clips using the ALPHA channel of the clipPath image:
+    //   opaque pixels  → object pixels are SHOWN
+    //   transparent px → object pixels are HIDDEN (clipped out)
+    //
+    // So we start with a fully opaque white mask (= all visible), then
+    // punch transparent holes using `destination-out` where we erase.
+    //
+    // The eraserPath SVG path data is in Fabric SCENE coordinates.
+    // Transform: scene → screen pixel → mask-local pixel:
+    //   screenX = sceneX * zoom + vpt[4]
+    //   maskLocalX = screenX - maskLeft
+    //   Combined: tx = vpt[4] - maskLeft,  scale = zoom
+    const svgStr = eraserPath.toSVG();
+    const parser = new DOMParser();
+    const svgDoc = parser.parseFromString(
+      `<svg xmlns="http://www.w3.org/2000/svg">${svgStr}</svg>`,
+      'image/svg+xml'
+    );
+    const pathEl = svgDoc.querySelector('path');
+    if (pathEl) {
+      const d = pathEl.getAttribute('d') || '';
+      const p2d = new Path2D(d);
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.translate(vpt[4] - maskLeft, vpt[5] - maskTop);
+      ctx.scale(zoom, zoom);
+      ctx.strokeStyle = 'rgba(0,0,0,1)';
+      ctx.fillStyle   = 'rgba(0,0,0,1)';
+      ctx.lineWidth   = (eraserPath.strokeWidth ?? 20);
+      ctx.lineCap     = 'round';
+      ctx.lineJoin    = 'round';
+      ctx.stroke(p2d);
+      ctx.restore();
+    }
+
+    // --- Convert mask to Fabric clipPath ---
+    const dataUrl = offscreen.toDataURL();
+    fabric.FabricImage.fromURL(dataUrl).then((maskImg: any) => {
+      // absolutePositioned: true → Fabric interprets left/top in canvas SCENE coords.
+      // The mask covers the object at maskLeft/maskTop in screen px.
+      // Scene coords: sceneX = (screenX - vpt[4]) / zoom
+      const sceneLeft = (maskLeft - vpt[4]) / zoom;
+      const sceneTop  = (maskTop  - vpt[5]) / zoom;
+      const sceneW    = maskW / zoom;
+      const sceneH    = maskH / zoom;
+
+      maskImg.set({
+        originX: 'left',
+        originY: 'top',
+        left: sceneLeft,
+        top:  sceneTop,
+        scaleX: sceneW / (maskImg.width  || maskW),
+        scaleY: sceneH / (maskImg.height || maskH),
+        absolutePositioned: true,
+      });
+      maskImg._eraserMask = offscreen;
+      obj.clipPath = maskImg;
+      obj.dirty = true;
+
+      pending--;
+      if (pending === 0) canvas.requestRenderAll();
+    });
+  });
+
+  // Remove the eraser path immediately — it must NOT persist as a layer
+  canvas.remove(eraserPath);
+}
+
 export default function ArtboardCanvas({ width, height, onCanvasReady }: ArtboardCanvasProps) {
   const canvasElRef = useRef<HTMLCanvasElement>(null);
   const fabricRef = useRef<fabric.Canvas | null>(null);
@@ -26,7 +156,7 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
   const startPos = useRef({ x: 0, y: 0 });
   const currentShape = useRef<any>(null);
   const dimensionLabel = useRef<fabric.Text | null>(null);
-  const [debugText, setDebugText] = useState('');
+
 
   // Lasso state
   const isLassoing = useRef(false);
@@ -331,14 +461,18 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
 
     canvas.on('path:created', (e: any) => {
       const path = e.path;
-      if (path) {
+      if (!path) return;
+
+      if (useCanvasStore.getState().activeTool === 'eraser') {
+        // Real destructive erase: bake the stroke into each intersected object
+        // as a clipPath mask, then remove the path. No eraser layer is created.
+        applyEraserStroke(canvas, path);
+        // syncLayers will be triggered by object:modified after clipPath update
+        setTimeout(() => syncLayers(canvas), 50);
+      } else {
+        // Pen stroke — treat as a real layer
         path._canvasLayerId = uuidv4();
-        if (useCanvasStore.getState().activeTool === 'eraser') {
-          path.globalCompositeOperation = 'destination-out';
-          path._layerName = 'Eraser Stroke';
-        } else {
-          path._layerName = 'Pen Stroke';
-        }
+        path._layerName = 'Pen Stroke';
       }
     });
 
