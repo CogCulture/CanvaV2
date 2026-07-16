@@ -235,7 +235,7 @@ function LayerRow({ layer }: { layer: CanvasLayer }) {
 
         {/* Name */}
         <span className={`flex-1 text-[11px] truncate ${isActive ? 'text-white font-medium' : 'text-white/60'}`}>
-          {layer.name} ({layer.id.slice(0,4)})
+          {layer.name}
         </span>
 
         {/* Visibility */}
