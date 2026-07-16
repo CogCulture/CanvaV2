@@ -56,84 +56,45 @@ function applyEraserStroke(
     );
   });
 
-  if (targets.length === 0) return;
-
-  let pending = targets.length;
+  // Build the path string in scene coords
+  let pathData = `M ${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length; i++) {
+    pathData += ` L ${points[i].x} ${points[i].y}`;
+  }
 
   targets.forEach((obj: any) => {
-    // Object bounding rect in screen pixels
-    const ob = obj.getBoundingRect();
-    const pad = brushSize;
-    const maskLeft   = ob.left   - pad;
-    const maskTop    = ob.top    - pad;
-    const maskWidth  = Math.max(1, Math.ceil(ob.width  + pad * 2));
-    const maskHeight = Math.max(1, Math.ceil(ob.height + pad * 2));
-
-    const offscreen = document.createElement('canvas');
-    offscreen.width  = maskWidth;
-    offscreen.height = maskHeight;
-    const ctx = offscreen.getContext('2d')!;
-
-    // Start from existing mask or white (= fully visible)
-    if (obj.clipPath && (obj.clipPath as any)._eraserMask) {
-      ctx.drawImage((obj.clipPath as any)._eraserMask, 0, 0, maskWidth, maskHeight);
-    } else {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, maskWidth, maskHeight);
-    }
-
-    // --- Punch out the eraser stroke using destination-out ---
-    // Points are in scene coords. Transform to mask-local screen pixels:
-    //   screenX = sceneX * zoom + vpt[4]
-    //   maskLocalX = screenX - maskLeft
-    if (points.length > 0) {
-      ctx.save();
-      ctx.globalCompositeOperation = 'destination-out';
-      ctx.strokeStyle = 'rgba(0,0,0,1)';
-      ctx.lineWidth   = brushSize * zoom;   // convert scene brush size → screen px
-      ctx.lineCap     = 'round';
-      ctx.lineJoin    = 'round';
-      ctx.beginPath();
-      const toMask = (p: {x: number; y: number}) => ({
-        x: p.x * zoom + vpt[4] - maskLeft,
-        y: p.y * zoom + vpt[5] - maskTop,
-      });
-      const first = toMask(points[0]);
-      ctx.moveTo(first.x, first.y);
-      for (let i = 1; i < points.length; i++) {
-        const pt = toMask(points[i]);
-        ctx.lineTo(pt.x, pt.y);
-      }
-      ctx.stroke();
-      ctx.restore();
-    }
-
-    // --- Apply mask as Fabric clipPath (absolutePositioned = true) ---
-    const dataUrl = offscreen.toDataURL();
-    fabric.FabricImage.fromURL(dataUrl).then((maskImg: any) => {
-      // With absolutePositioned:true, Fabric interprets left/top in scene coords
-      const sceneLeft = (maskLeft - vpt[4]) / zoom;
-      const sceneTop  = (maskTop  - vpt[5]) / zoom;
-      const sceneW    = maskWidth  / zoom;
-      const sceneH    = maskHeight / zoom;
-
-      maskImg.set({
-        originX: 'left',
-        originY: 'top',
-        left:   sceneLeft,
-        top:    sceneTop,
-        scaleX: sceneW / (maskImg.width  || maskWidth),
-        scaleY: sceneH / (maskImg.height || maskHeight),
-        absolutePositioned: true,
-      });
-      maskImg._eraserMask = offscreen;
-      obj.clipPath = maskImg;
-      obj.dirty = true;
-
-      pending--;
-      if (pending === 0) canvas.requestRenderAll();
+    // Create a new path for each target so they don't share references
+    const erasePath = new fabric.Path(pathData, {
+      fill: '',
+      stroke: 'black',
+      strokeWidth: brushSize,
+      strokeLineCap: 'round',
+      strokeLineJoin: 'round',
+      globalCompositeOperation: 'destination-out',
+      selectable: false,
+      evented: false,
     });
+
+    const layerId = obj._canvasLayerId;
+    const layerName = obj._layerName;
+    
+    // Create a new group combining the object and the eraser stroke
+    const group = new fabric.Group([obj, erasePath], {
+      _isEraserGroup: true,
+      _canvasLayerId: layerId,
+      _layerName: layerName,
+      objectCaching: true, // Crucial for destination-out to work within the group
+      selectable: obj.selectable !== false,
+      evented: obj.evented !== false,
+      hasControls: obj.hasControls !== false,
+    } as any);
+
+    // Replace the old object with the new group
+    canvas.remove(obj);
+    canvas.add(group);
   });
+  
+  canvas.requestRenderAll();
 }
 
 export default function ArtboardCanvas({ width, height, onCanvasReady }: ArtboardCanvasProps) {
