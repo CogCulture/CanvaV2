@@ -270,15 +270,35 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
               />
             </div>
             
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] text-white/35 w-12 shrink-0">Stroke</span>
-              <ColorInput 
-                value={props.stroke || '#000000'} 
-                onChange={(val) => {
-                  setProps((p) => p ? { ...p, stroke: val } : p);
-                  applyProp('stroke', val);
-                }} 
-              />
+            <div className="flex items-start gap-2">
+              <div className="flex flex-col w-12 shrink-0 gap-1.5 pt-1">
+                <span className="text-[9px] text-white/35">Stroke</span>
+                <button
+                  title="Toggle transparent stroke"
+                  onClick={() => {
+                    const isTransparent = props.stroke === 'transparent';
+                    const newVal = isTransparent ? '#000000' : 'transparent';
+                    setProps((p) => p ? { ...p, stroke: newVal } : p);
+                    applyProp('stroke', newVal);
+                  }}
+                  className={`text-[8px] font-mono px-1 py-0.5 rounded border transition-colors ${
+                    props.stroke === 'transparent' 
+                      ? 'bg-blue-500/20 border-blue-500/30 text-blue-400' 
+                      : 'bg-white/5 border-white/10 text-white/40 hover:bg-white/10 hover:text-white/60'
+                  }`}
+                >
+                  {props.stroke === 'transparent' ? 'NONE' : 'CLEAR'}
+                </button>
+              </div>
+              <div className={`flex-1 transition-opacity ${props.stroke === 'transparent' ? 'opacity-40 pointer-events-none' : ''}`}>
+                <ColorInput 
+                  value={props.stroke === 'transparent' ? '#000000' : (props.stroke || '#000000')} 
+                  onChange={(val) => {
+                    setProps((p) => p ? { ...p, stroke: val } : p);
+                    applyProp('stroke', val);
+                  }} 
+                />
+              </div>
             </div>
 
             <div className="flex items-center gap-2">
