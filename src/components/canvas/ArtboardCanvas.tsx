@@ -32,7 +32,7 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
   const lassoPoints = useRef<{x: number, y: number}[]>([]);
   const lastMousePos = useRef<{x: number, y: number} | null>(null);
 
-  const { addLayer, removeLayer, setActiveLayer, updateLayer, setLayers, layers, initialImageDataUrl, activeTool, setActiveTool, penColor, penSize, setPenColor, lassoMode, eraserMode, eraserSize, markCanvasDirty } =
+  const { addLayer, removeLayer, setActiveLayer, setActiveLayers, updateLayer, setLayers, layers, initialImageDataUrl, activeTool, setActiveTool, penColor, penSize, setPenColor, lassoMode, eraserMode, eraserSize, markCanvasDirty } =
     useCanvasStore();
 
   const syncLayers = useCallback(
@@ -295,14 +295,14 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
 
     // ── Selection sync ────────────────────────────────────────────────
     canvas.on('selection:created', (e: any) => {
-      const obj = e.selected?.[0] as any;
-      if (obj?._canvasLayerId) setActiveLayer(obj._canvasLayerId);
+      const ids = e.selected?.map((obj: any) => obj._canvasLayerId).filter(Boolean) || [];
+      if (ids.length > 0) setActiveLayers(ids);
     });
     canvas.on('selection:updated', (e: any) => {
-      const obj = e.selected?.[0] as any;
-      if (obj?._canvasLayerId) setActiveLayer(obj._canvasLayerId);
+      const ids = e.selected?.map((obj: any) => obj._canvasLayerId).filter(Boolean) || [];
+      if (ids.length > 0) setActiveLayers(ids);
     });
-    canvas.on('selection:cleared', () => setActiveLayer(null));
+    canvas.on('selection:cleared', () => setActiveLayers([]));
 
     canvas.on('path:created', (e: any) => {
       const path = e.path;

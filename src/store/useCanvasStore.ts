@@ -75,6 +75,7 @@ export interface CanvasState {
   projectTitle: string;
   layers: CanvasLayer[];
   activeLayerId: string | null;
+  activeLayerIds: string[];
   isCanvasHomeOpen: boolean;
   openCanvasHome: () => void;
   closeCanvasHome: () => void;
@@ -119,6 +120,7 @@ export interface CanvasState {
   addLayer: (layer: CanvasLayer) => void;
   removeLayer: (id: string) => void;
   setActiveLayer: (id: string | null) => void;
+  setActiveLayers: (ids: string[]) => void;
   updateLayer: (id: string, patch: Partial<CanvasLayer>) => void;
   reorderLayers: (fromIndex: number, toIndex: number) => void;
   showRulers: boolean;
@@ -137,6 +139,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   projectTitle: 'Untitled Canvas',
   layers: [],
   activeLayerId: null,
+  activeLayerIds: [],
   isCanvasHomeOpen: true,
   openCanvasHome: () => set({ isCanvasHomeOpen: true }),
   closeCanvasHome: () => set({ isCanvasHomeOpen: false }),
@@ -214,6 +217,7 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       initialImageDataUrl: imageDataUrl ?? null,
       layers: [],
       activeLayerId: null,
+      activeLayerIds: [],
       currentSavedCanvasId: restoredCanvas?.id ?? null,
       projectTitle: restoredCanvas?.name ?? 'Untitled Canvas',
       isCanvasDirty: false,
@@ -240,8 +244,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     set((s) => ({
       layers: s.layers.filter((l) => l.id !== id),
       activeLayerId: s.activeLayerId === id ? null : s.activeLayerId,
+      activeLayerIds: s.activeLayerIds.filter((layerId) => layerId !== id),
     })),
-  setActiveLayer: (id) => set({ activeLayerId: id }),
+  setActiveLayer: (id) => set({ activeLayerId: id, activeLayerIds: id ? [id] : [] }),
+  setActiveLayers: (ids) => set({ activeLayerIds: ids, activeLayerId: ids.length > 0 ? ids[0] : null }),
   updateLayer: (id, patch) =>
     set((s) => ({ layers: s.layers.map((l) => (l.id === id ? { ...l, ...patch } : l)) })),
   reorderLayers: (fromIndex, toIndex) =>

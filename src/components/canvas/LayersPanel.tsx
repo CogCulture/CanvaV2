@@ -26,8 +26,8 @@ import { uploadDataUrlToCloud } from '../../utils/tauri-mocks';
 
 
 function LayerRow({ layer }: { layer: CanvasLayer }) {
-  const { activeLayerId, setActiveLayer, updateLayer, removeLayer, layers, setLayers, openImageEdit } = useCanvasStore();
-  const isActive = activeLayerId === layer.id;
+  const { activeLayerId, activeLayerIds, setActiveLayer, updateLayer, removeLayer, layers, setLayers, openImageEdit } = useCanvasStore();
+  const isActive = activeLayerIds.includes(layer.id);
 
   const [fontFamily, setFontFamily] = useState('Open Sans');
   const [fontSize, setFontSize] = useState(40);
