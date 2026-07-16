@@ -20,12 +20,13 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
   const spaceHeld = useRef(false);
   const isPanning = useRef(false);
   const lastPan = useRef<{ x: number; y: number } | null>(null);
-  
+
   // Drawing state refs
   const isDrawingShape = useRef(false);
   const startPos = useRef({ x: 0, y: 0 });
   const currentShape = useRef<any>(null);
   const dimensionLabel = useRef<fabric.Text | null>(null);
+  const [debugText, setDebugText] = useState('');
 
   // Lasso state
   const isLassoing = useRef(false);
@@ -295,7 +296,30 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
 
     const updateSelection = () => {
       const activeObjects = canvas.getActiveObjects();
-      const ids = activeObjects.map((obj: any) => obj._canvasLayerId).filter(Boolean);
+      
+      const extractedIds = new Set<string>();
+      const traverse = (objs: any[]) => {
+        objs.forEach((o: any) => {
+          if (o._canvasLayerId) {
+            extractedIds.add(o._canvasLayerId);
+          }
+          if (o.type === 'activeSelection' || o.type === 'group') {
+            if (typeof o.getObjects === 'function') {
+              traverse(o.getObjects());
+            }
+          }
+        });
+      };
+      
+      traverse(activeObjects);
+      
+      // Fabric might set the active object to the active selection itself instead of activeObjects array containing the selection
+      const activeObj = canvas.getActiveObject();
+      if (activeObj && !activeObjects.includes(activeObj)) {
+         traverse([activeObj]);
+      }
+
+      const ids = Array.from(extractedIds);
       if (ids.length > 0) setActiveLayers(ids);
       else setActiveLayers([]);
     };
@@ -809,13 +833,14 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
   }, []);
 
   return (
-    <div 
-      ref={containerRef} 
-      className="relative outline-none shadow-[0_20px_40px_rgba(0,0,0,0.5)] bg-white" 
-      tabIndex={0}
-      style={{ width: fabricRef.current?.getWidth() ?? width, height: fabricRef.current?.getHeight() ?? height }}
-    >
-      <canvas ref={canvasElRef} />
+    <div className="relative w-full h-full bg-[#111111] overflow-auto flex items-center justify-center p-12">
+      <div 
+        ref={containerRef}
+        className="canvas-container relative bg-white shadow-2xl transition-all duration-200"
+        style={{ width, height }}
+      >
+        <canvas ref={canvasElRef} />
+      </div>
     </div>
   );
 }
