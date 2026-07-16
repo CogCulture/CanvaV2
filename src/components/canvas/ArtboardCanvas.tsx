@@ -56,42 +56,65 @@ function applyEraserStroke(
     );
   });
 
-  // Build the path string in scene coords
-  let pathData = `M ${points[0].x} ${points[0].y}`;
-  for (let i = 1; i < points.length; i++) {
-    pathData += ` L ${points[i].x} ${points[i].y}`;
-  }
-
   targets.forEach((obj: any) => {
-    // Create a new path for each target so they don't share references
-    const erasePath = new fabric.Path(pathData, {
+    // 1. Convert scene points to object's local coordinate space
+    const inv = fabric.util.invertTransform(obj.calcTransformMatrix());
+    const localPoints = points.map(p => fabric.util.transformPoint(new fabric.Point(p.x, p.y), inv));
+    
+    let localPathData = `M ${localPoints[0].x} ${localPoints[0].y}`;
+    for (let i = 1; i < localPoints.length; i++) {
+      localPathData += ` L ${localPoints[i].x} ${localPoints[i].y}`;
+    }
+    
+    // Scale the stroke width relative to the object's scale
+    const avgScale = ((obj.scaleX || 1) + (obj.scaleY || 1)) / 2;
+    const localStrokeWidth = brushSize / avgScale;
+
+    // Create the eraser path in local space
+    const localErasePath = new fabric.Path(localPathData, {
       fill: '',
       stroke: 'black',
-      strokeWidth: brushSize,
+      strokeWidth: localStrokeWidth,
       strokeLineCap: 'round',
       strokeLineJoin: 'round',
       globalCompositeOperation: 'destination-out',
-      selectable: false,
-      evented: false,
     });
 
-    const layerId = obj._canvasLayerId;
-    const layerName = obj._layerName;
-    
-    // Create a new group combining the object and the eraser stroke
-    const group = new fabric.Group([obj, erasePath], {
-      _isEraserGroup: true,
-      _canvasLayerId: layerId,
-      _layerName: layerName,
-      objectCaching: true, // Crucial for destination-out to work within the group
-      selectable: obj.selectable !== false,
-      evented: obj.evented !== false,
-      hasControls: obj.hasControls !== false,
-    } as any);
+    if (obj.clipPath && (obj.clipPath as any)._isEraserClipGroup) {
+      // Append to the existing eraser clipPath group
+      const clipGroup = obj.clipPath as fabric.Group;
+      clipGroup._objects.push(localErasePath);
+      localErasePath.group = clipGroup;
+      clipGroup.dirty = true;
+      obj.dirty = true;
+    } else {
+      // Create a massive background rect centered at 0,0 (object's center)
+      // This ensures the clipPath covers the entire object and doesn't clip its actual bounds
+      const HUGE = 10000;
+      const bgRect = new fabric.Rect({
+        left: -HUGE / 2,
+        top: -HUGE / 2,
+        width: HUGE,
+        height: HUGE,
+        fill: 'white', // White = fully opaque in a mask
+        originX: 'left',
+        originY: 'top'
+      });
 
-    // Replace the old object with the new group
-    canvas.remove(obj);
-    canvas.add(group);
+      // Group the background rect and the eraser path
+      const clipGroup = new fabric.Group([bgRect], {
+        _isEraserClipGroup: true,
+        originX: 'center',
+        originY: 'center',
+        objectCaching: true
+      } as any);
+
+      clipGroup._objects.push(localErasePath);
+      localErasePath.group = clipGroup;
+
+      obj.clipPath = clipGroup;
+      obj.dirty = true;
+    }
   });
   
   canvas.requestRenderAll();

@@ -39,22 +39,13 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
   const { activeLayerId, updateLayer, clearGuides, guides, activeGuideId, setGuides, setActiveGuideId } = useCanvasStore();
   const [props, setProps] = useState<ObjProps | null>(null);
 
-  const getBaseObject = (obj: any) => {
-    let curr = obj;
-    while (curr && curr._isEraserGroup) {
-      curr = curr.getObjects()[0];
-    }
-    return curr;
-  };
-
   const readProps = useCallback(() => {
     if (!canvas) return;
     const obj = canvas.getActiveObject();
     if (!obj) { setProps(null); return; }
     
-    const baseObj = getBaseObject(obj);
-    let fill = typeof baseObj.fill === 'string' ? baseObj.fill : '#000000';
-    let stroke = typeof baseObj.stroke === 'string' ? baseObj.stroke : '#000000';
+    let fill = typeof obj.fill === 'string' ? obj.fill : '#000000';
+    let stroke = typeof obj.stroke === 'string' ? obj.stroke : '#000000';
     
     setProps({
       x: Math.round(obj.left ?? 0),
@@ -64,10 +55,10 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
       angle: Math.round(obj.angle ?? 0),
       opacity: Math.round((obj.opacity ?? 1) * 100),
       blend: (obj.globalCompositeOperation as string) || 'source-over',
-      type: baseObj.type ?? 'object', // show the base object's type instead of 'group'
+      type: obj.type ?? 'object',
       fill,
       stroke,
-      strokeWidth: baseObj.strokeWidth || 0,
+      strokeWidth: obj.strokeWidth || 0,
     });
   }, [canvas]);
 
@@ -108,10 +99,6 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
       // sync to layer store
       const layerId = (obj as any)._canvasLayerId;
       if (layerId) updateLayer(layerId, { opacity: value });
-    } else if (['fill', 'stroke', 'strokeWidth'].includes(key)) {
-      const baseObj = getBaseObject(obj);
-      baseObj.set({ [key]: value } as any);
-      obj.dirty = true;
     } else {
       obj.set({ [key]: value } as any);
     }
