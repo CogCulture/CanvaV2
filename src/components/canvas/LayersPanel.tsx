@@ -33,6 +33,8 @@ function LayerRow({ layer }: { layer: CanvasLayer }) {
   const [fontSize, setFontSize] = useState(40);
   const [isTypeOnPath, setIsTypeOnPath] = useState(false);
   const [repeatText, setRepeatText] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState(layer.name);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: layer.id,
@@ -234,9 +236,46 @@ function LayerRow({ layer }: { layer: CanvasLayer }) {
         <TypeIcon size={11} className={`shrink-0 ${isActive ? 'text-blue-400' : 'text-white/30'}`} />
 
         {/* Name */}
-        <span className={`flex-1 text-[11px] truncate ${isActive ? 'text-white font-medium' : 'text-white/60'}`}>
-          {layer.name}
-        </span>
+        {isEditingName ? (
+          <input
+            autoFocus
+            type="text"
+            value={editNameValue}
+            onChange={(e) => setEditNameValue(e.target.value)}
+            onBlur={() => {
+              setIsEditingName(false);
+              if (editNameValue.trim() && editNameValue !== layer.name) {
+                updateLayer(layer.id, { name: editNameValue.trim() });
+                const obj = getFabricObj() as any;
+                if (obj) obj._layerName = editNameValue.trim();
+              }
+            }}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === 'Enter') {
+                e.currentTarget.blur();
+              } else if (e.key === 'Escape') {
+                setIsEditingName(false);
+                setEditNameValue(layer.name);
+              }
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            className="flex-1 bg-white/10 text-white text-[11px] px-1 py-0.5 rounded outline-none border border-blue-500/50"
+          />
+        ) : (
+          <span 
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setEditNameValue(layer.name);
+              setIsEditingName(true);
+            }}
+            className={`flex-1 text-[11px] truncate cursor-text ${isActive ? 'text-white font-medium' : 'text-white/60'}`}
+            title="Double-click to edit name"
+          >
+            {layer.name}
+          </span>
+        )}
 
         {/* Visibility */}
         <button
