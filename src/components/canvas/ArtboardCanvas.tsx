@@ -1,5 +1,9 @@
 import { useEffect, useRef, useCallback } from 'react';
 import * as fabric from 'fabric';
+import { classRegistry, FabricImage } from 'fabric';
+
+classRegistry.setClass(FabricImage, 'Image');
+classRegistry.setClass(FabricImage, 'image');
 import { useCanvasStore, CanvasLayer } from '../../store/useCanvasStore';
 import { useProcessStore } from '../../store/useProcessStore';
 import { convertShapeToTextPath, createTextOnPath } from '../../utils/textOnPathUtils';
