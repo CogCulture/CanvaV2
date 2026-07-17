@@ -35,6 +35,26 @@ const BLEND_MODES = [
   { value: 'exclusion', label: 'Exclusion' },
 ];
 
+const Field = ({
+  label, value, onChange, min, max, step = 1,
+}: {
+  label: string; value: number; onChange: (v: number) => void;
+  min?: number; max?: number; step?: number;
+}) => (
+  <div className="flex items-center gap-2">
+    <span className="text-[9px] text-white/35 w-5 shrink-0 font-mono">{label}</span>
+    <input
+      type="number"
+      value={value}
+      min={min}
+      max={max}
+      step={step}
+      onChange={(e) => onChange(Number(e.target.value))}
+      className="flex-1 bg-white/6 border border-white/10 rounded-md px-2 py-1 text-[11px] text-white outline-none focus:border-blue-500/70 transition-colors text-center"
+    />
+  </div>
+);
+
 export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelProps) {
   const { activeLayerId, updateLayer, clearGuides, guides, activeGuideId, setGuides, setActiveGuideId } = useCanvasStore();
   const [props, setProps] = useState<ObjProps | null>(null);
@@ -172,26 +192,6 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
       </div>
     );
   }
-
-  const Field = ({
-    label, value, onChange, min, max, step = 1,
-  }: {
-    label: string; value: number; onChange: (v: number) => void;
-    min?: number; max?: number; step?: number;
-  }) => (
-    <div className="flex items-center gap-2">
-      <span className="text-[9px] text-white/35 w-5 shrink-0 font-mono">{label}</span>
-      <input
-        type="number"
-        value={value}
-        min={min}
-        max={max}
-        step={step}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="flex-1 bg-white/6 border border-white/10 rounded-md px-2 py-1 text-[11px] text-white outline-none focus:border-blue-500/70 transition-colors text-center"
-      />
-    </div>
-  );
 
   return (
     <div className="p-3 space-y-4 overflow-y-auto flex-1 select-none">
