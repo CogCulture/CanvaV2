@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Trash2, FolderOpen, Clock, Layout } from 'lucide-react';
 import { useCanvasStore, SavedCanvas, ARTBOARD_PRESETS } from '../../store/useCanvasStore';
 import ArtboardSetupModal from './ArtboardSetupModal';
@@ -80,7 +80,13 @@ function CanvasCard({ canvas, onOpen, onDelete }: { canvas: SavedCanvas; onOpen:
 }
 
 export default function CanvasHomeScreen() {
-  const { isCanvasHomeOpen, savedCanvases, deleteSavedCanvas, openCanvasView, openSetupModal } = useCanvasStore();
+  const { isCanvasHomeOpen, savedCanvases, deleteSavedCanvas, openCanvasView, openSetupModal, loadSavedCanvases } = useCanvasStore();
+
+  useEffect(() => {
+    if (isCanvasHomeOpen) {
+      loadSavedCanvases();
+    }
+  }, [isCanvasHomeOpen, loadSavedCanvases]);
 
   if (!isCanvasHomeOpen) return null;
 

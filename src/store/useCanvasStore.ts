@@ -50,21 +50,51 @@ export interface SavedCanvas {
 
 const STORAGE_KEY = 'rapidraw_saved_canvases';
 
-function loadFromStorage(): SavedCanvas[] {
+const DB_NAME = 'RapidRawDB';
+const STORE_NAME = 'canvases';
+
+async function initDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
+    request.onupgradeneeded = () => {
+      request.result.createObjectStore(STORE_NAME);
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function loadFromStorageAsync(): Promise<SavedCanvas[]> {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    return JSON.parse(raw) as SavedCanvas[];
-  } catch {
+    const db = await initDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readonly');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.get(STORAGE_KEY);
+      request.onsuccess = () => {
+        const result = request.result;
+        resolve(result ? (JSON.parse(result) as SavedCanvas[]) : []);
+      };
+      request.onerror = () => reject(request.error);
+    });
+  } catch (e) {
+    console.warn('[CanvasStore] IndexedDB load failed:', e);
     return [];
   }
 }
 
-function persistToStorage(canvases: SavedCanvas[]) {
+async function persistToStorageAsync(canvases: SavedCanvas[]) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(canvases));
+    const db = await initDB();
+    return new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, 'readwrite');
+      const store = tx.objectStore(STORE_NAME);
+      const request = store.put(JSON.stringify(canvases), STORAGE_KEY);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
   } catch (e) {
-    console.warn('[CanvasStore] localStorage save failed:', e);
+    console.warn('[CanvasStore] IndexedDB save failed:', e);
   }
 }
 
@@ -143,8 +173,11 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   isCanvasHomeOpen: true,
   openCanvasHome: () => set({ isCanvasHomeOpen: true }),
   closeCanvasHome: () => set({ isCanvasHomeOpen: false }),
-  savedCanvases: loadFromStorage(),
-  loadSavedCanvases: () => set({ savedCanvases: loadFromStorage() }),
+  savedCanvases: [],
+  loadSavedCanvases: async () => {
+    const canvases = await loadFromStorageAsync();
+    set({ savedCanvases: canvases });
+  },
   saveCanvas: (name, fabricJSON, thumbnail) => {
     const now = Date.now();
     const currentId = get().currentSavedCanvasId;
@@ -168,12 +201,12 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       };
       updated = [newCanvas, ...get().savedCanvases];
     }
-    persistToStorage(updated);
+    persistToStorageAsync(updated);
     set({ savedCanvases: updated, isCanvasDirty: false, currentSavedCanvasId: newId });
   },
   deleteSavedCanvas: (id) => {
     const updated = get().savedCanvases.filter((c) => c.id !== id);
-    persistToStorage(updated);
+    persistToStorageAsync(updated);
     set({ savedCanvases: updated });
   },
   currentSavedCanvasId: null,

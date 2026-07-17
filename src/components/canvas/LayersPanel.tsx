@@ -446,11 +446,17 @@ export default function LayersPanel() {
     const input = document.createElement('input');
     input.type = 'file';
     input.accept = 'image/*';
-    input.onchange = async (e) => {
+    input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
-      const url = URL.createObjectURL(file);
-      await addImageToCanvas(url, file.name.replace(/\.[^.]+$/, ''));
+      const reader = new FileReader();
+      reader.onload = async (ev) => {
+        const dataUrl = ev.target?.result as string;
+        if (dataUrl) {
+          await addImageToCanvas(dataUrl, file.name.replace(/\.[^.]+$/, ''));
+        }
+      };
+      reader.readAsDataURL(file);
     };
     input.click();
   };
