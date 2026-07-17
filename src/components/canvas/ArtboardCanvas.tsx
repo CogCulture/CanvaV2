@@ -489,6 +489,16 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
     const canvas = fabricRef.current;
     try {
       const json = JSON.parse(pendingRestoredCanvas.fabricJSON);
+      
+      // Remove crossOrigin for data URLs in saved JSON to prevent CORS blocks on HTTP insecure contexts
+      if (json && json.objects) {
+        json.objects.forEach((obj: any) => {
+          if ((obj.type === 'image' || obj.type === 'Image' || obj.type === 'FabricImage' || obj.type === 'fabricImage') && obj.src && obj.src.startsWith('data:')) {
+            delete obj.crossOrigin;
+          }
+        });
+      }
+
       canvas.loadFromJSON(json).then(() => {
         // Re-tag all objects so custom properties survive serialization
         canvas.getObjects().forEach((obj: any, index: number) => {
@@ -519,7 +529,8 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
     // We get initialImagePath from store to ensure we remember the original source file path!
     const { initialImagePath } = useCanvasStore.getState();
 
-    fabric.FabricImage.fromURL(initialImageDataUrl, { crossOrigin: 'anonymous' }).then((img) => {
+    const imgOpts = initialImageDataUrl.startsWith('data:') ? {} : { crossOrigin: 'anonymous' };
+    fabric.FabricImage.fromURL(initialImageDataUrl, imgOpts as any).then((img) => {
       const scale = Math.min((width * 0.85) / (img.width || 1), (height * 0.85) / (img.height || 1));
       const layerId = uuidv4();
       (img as any)._canvasLayerId = layerId;
@@ -1025,7 +1036,8 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
 export async function addImageToCanvas(url: string, name: string = 'Image', sourcePath?: string) {
   const canvas = globalFabricCanvas;
   if (!canvas) return;
-  const img = await fabric.FabricImage.fromURL(url, { crossOrigin: 'anonymous' });
+  const imgOpts = url.startsWith('data:') ? {} : { crossOrigin: 'anonymous' };
+  const img = await fabric.FabricImage.fromURL(url, imgOpts as any);
   
   const scale = Math.min((canvas.getWidth() * 0.7) / (img.width || 1), (canvas.getHeight() * 0.7) / (img.height || 1));
   const layerId = uuidv4();
