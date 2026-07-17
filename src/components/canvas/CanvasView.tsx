@@ -301,8 +301,14 @@ export default function CanvasView() {
                 handleFilmstripSelect(path);
               } else if (e.dataTransfer.files?.length > 0) {
                  const file = e.dataTransfer.files[0];
-                 const url = URL.createObjectURL(file);
-                 addImageToCanvas(url, file.name.replace(/\.[^.]+$/, ''));
+                 const reader = new FileReader();
+                 reader.onload = (ev) => {
+                   const dataUrl = ev.target?.result as string;
+                   if (dataUrl) {
+                     addImageToCanvas(dataUrl, file.name.replace(/\.[^.]+$/, ''));
+                   }
+                 };
+                 reader.readAsDataURL(file);
               }
             }}
           >
