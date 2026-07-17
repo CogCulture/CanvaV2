@@ -66,7 +66,7 @@ const Field = ({
 );
 
 export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelProps) {
-  const { activeLayerId, updateLayer, clearGuides, guides, activeGuideId, setGuides, setActiveGuideId } = useCanvasStore();
+  const { activeLayerId, updateLayer, clearGuides, guides, activeGuideId, setGuides, setActiveGuideId, rulerUnit, setRulerUnit } = useCanvasStore();
   const [props, setProps] = useState<ObjProps | null>(null);
 
   const readProps = useCallback(() => {
@@ -224,6 +224,24 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
             <p className="text-[11px] text-center leading-relaxed">
               Select a layer or guideline<br />to view properties
             </p>
+            
+            <div className="mt-8 w-full px-4 text-left">
+              <div className="text-[10px] text-white/50 font-semibold uppercase tracking-widest mb-2">
+                Canvas Settings
+              </div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-[9px] text-white/35 w-20 shrink-0 font-mono">Ruler Unit</span>
+                <select
+                  value={rulerUnit}
+                  onChange={(e) => setRulerUnit(e.target.value as 'px' | 'in' | 'cm')}
+                  className="flex-1 bg-white/6 border border-white/10 rounded-md px-2 py-1 text-[11px] text-white outline-none focus:border-blue-500/70 transition-colors"
+                >
+                  <option value="px">Pixels (px)</option>
+                  <option value="in">Inches (in)</option>
+                  <option value="cm">Centimeters (cm)</option>
+                </select>
+              </div>
+            </div>
           </div>
         )}
 

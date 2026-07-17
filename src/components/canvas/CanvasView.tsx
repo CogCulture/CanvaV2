@@ -19,7 +19,7 @@ import { addImageToCanvas } from './ArtboardCanvas';
 import CanvasRulers from './CanvasRulers';
 
 export default function CanvasView() {
-  const { artboardWidth, artboardHeight, closeCanvasView, isCanvasDirty, layers, activeLayerId, setActiveLayer } = useCanvasStore();
+  const { artboardWidth, artboardHeight, closeCanvasView, isCanvasDirty, layers, activeLayerId, setActiveLayer, activeGuideId, setActiveGuideId, rulerUnit } = useCanvasStore();
   const { imageRatings } = useLibraryStore();
   const { requestThumbnails } = useThumbnails();
   
@@ -42,7 +42,6 @@ export default function CanvasView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const clipboardRef = useRef<fabric.Object | null>(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
-  const [rulerUnit, setRulerUnit] = useState<'px' | 'in' | 'cm'>('px');
 
   const handleCanvasReady = useCallback((c: fabric.Canvas) => {
     setCanvas(c);

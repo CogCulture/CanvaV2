@@ -160,9 +160,13 @@ export interface CanvasState {
   clearGuides: () => void;
   activeGuideId: string | null;
   setActiveGuideId: (id: string | null) => void;
+  rulerUnit: 'px' | 'in' | 'cm';
+  setRulerUnit: (unit: 'px' | 'in' | 'cm') => void;
 }
 
 export const useCanvasStore = create<CanvasState>((set, get) => ({
+  rulerUnit: 'px',
+  setRulerUnit: (unit) => set({ rulerUnit: unit }),
   artboardWidth: 1920,
   artboardHeight: 1080,
   artboardPreset: ARTBOARD_PRESETS[0],
