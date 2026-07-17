@@ -24,7 +24,6 @@ const TOOLS = [
   { id: 'ellipse', icon: Circle, label: 'Ellipse Tool (L)' },
   { id: 'type', icon: Type, label: 'Type Tool (T)' },
   { id: 'type_path', icon: Spline, label: 'Type on Path Tool (Y)' },
-  { id: 'eyedropper', icon: Pipette, label: 'Eyedropper Tool (I)' },
   { id: 'lasso', icon: Lasso, label: 'Lasso Selection Tool (S)' },
   { id: 'eraser', icon: Eraser, label: 'Eraser Tool (E)' },
 ];
