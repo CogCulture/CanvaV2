@@ -4,6 +4,8 @@ import { classRegistry, FabricImage } from 'fabric';
 
 classRegistry.setClass(FabricImage, 'Image');
 classRegistry.setClass(FabricImage, 'image');
+classRegistry.setClass(FabricImage, 'FabricImage');
+classRegistry.setClass(FabricImage, 'fabricImage');
 import { useCanvasStore, CanvasLayer } from '../../store/useCanvasStore';
 import { useProcessStore } from '../../store/useProcessStore';
 import { convertShapeToTextPath, createTextOnPath } from '../../utils/textOnPathUtils';
@@ -500,18 +502,28 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
       }
 
       canvas.loadFromJSON(json).then(() => {
+        const loadedObjects = canvas.getObjects();
+        if (loadedObjects.length !== json.objects.length) {
+          const loadedTypes = loadedObjects.map(o => o.type).join(',');
+          const jsonTypes = json.objects.map((o: any) => o.type).join(',');
+          alert(`Debug: Failed to load some objects! Expected ${json.objects.length} (${jsonTypes}), got ${loadedObjects.length} (${loadedTypes}).`);
+        }
+        
         // Re-tag all objects so custom properties survive serialization
-        canvas.getObjects().forEach((obj: any, index: number) => {
-          const jsonObj = json.objects[index];
-          if (jsonObj) {
-            obj._canvasLayerId = jsonObj._canvasLayerId;
-            obj._layerName = jsonObj._layerName;
-            obj._sourceFilePath = jsonObj._sourceFilePath;
-            obj._sourceDataUrl = jsonObj._sourceDataUrl;
-            obj._originalDataUrl = jsonObj._originalDataUrl;
-            obj._adjustments = jsonObj._adjustments;
-          }
-        });
+        // We match by index, but only if lengths match, otherwise we might corrupt objects
+        if (loadedObjects.length === json.objects.length) {
+          loadedObjects.forEach((obj: any, index: number) => {
+            const jsonObj = json.objects[index];
+            if (jsonObj) {
+              obj._canvasLayerId = jsonObj._canvasLayerId;
+              obj._layerName = jsonObj._layerName;
+              obj._sourceFilePath = jsonObj._sourceFilePath;
+              obj._sourceDataUrl = jsonObj._sourceDataUrl;
+              obj._originalDataUrl = jsonObj._originalDataUrl;
+              obj._adjustments = jsonObj._adjustments;
+            }
+          });
+        }
         canvas.requestRenderAll();
         syncLayers(canvas);
         useCanvasStore.getState().markCanvasClean();
