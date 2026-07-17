@@ -50,7 +50,7 @@ const Field = ({
       max={max}
       step={step}
       onChange={(e) => onChange(Number(e.target.value))}
-      className="flex-1 bg-white/6 border border-white/10 rounded-md px-2 py-1 text-[11px] text-white outline-none focus:border-blue-500/70 transition-colors text-center"
+      className="flex-1 min-w-0 w-full bg-white/6 border border-white/10 rounded-md px-2 py-1 text-[11px] text-white outline-none focus:border-blue-500/70 transition-colors text-center"
     />
   </div>
 );
