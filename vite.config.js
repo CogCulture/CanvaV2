@@ -9,7 +9,21 @@ const tauriMocks = path.resolve(__dirname, 'src/utils/tauri-mocks.ts');
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
-  plugins: [tailwindcss(), react()],
+  plugins: [
+    tailwindcss(), 
+    react(),
+    {
+      name: 'configure-server-timeout',
+      configureServer(server) {
+        if (server.httpServer) {
+          server.httpServer.setTimeout(600000); // 10 minutes
+          server.httpServer.keepAliveTimeout = 600000;
+          server.httpServer.headersTimeout = 600000;
+          server.httpServer.requestTimeout = 600000;
+        }
+      }
+    }
+  ],
 
   resolve: {
     alias: {
