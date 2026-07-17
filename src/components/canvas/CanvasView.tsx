@@ -42,6 +42,29 @@ export default function CanvasView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const clipboardRef = useRef<fabric.Object | null>(null);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [rightPanelWidth, setRightPanelWidth] = useState(240);
+  const isDraggingRightPanel = useRef(false);
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingRightPanel.current) return;
+      const newWidth = window.innerWidth - e.clientX;
+      setRightPanelWidth(Math.max(200, Math.min(600, newWidth)));
+    };
+    const handleMouseUp = () => {
+      if (isDraggingRightPanel.current) {
+        isDraggingRightPanel.current = false;
+        document.body.style.cursor = 'default';
+        document.body.style.userSelect = 'auto';
+      }
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   const handleCanvasReady = useCallback((c: fabric.Canvas) => {
     setCanvas(c);
@@ -348,12 +371,25 @@ export default function CanvasView() {
 
         {/* Right panel */}
         <div
-          className="w-60 flex flex-col shrink-0"
+          className="flex flex-col shrink-0 relative"
           style={{
+            width: rightPanelWidth,
             background: '#1c1c1e',
             borderLeft: '1px solid rgba(255,255,255,0.07)',
           }}
         >
+          {/* Resize handle */}
+          <div
+            className="absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize z-50 hover:bg-blue-500/50 transition-colors"
+            style={{ transform: 'translateX(-50%)' }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              isDraggingRightPanel.current = true;
+              document.body.style.cursor = 'col-resize';
+              document.body.style.userSelect = 'none';
+            }}
+          />
+
           {/* Properties — scrollable top section */}
           <div
             className="flex flex-col border-b"
