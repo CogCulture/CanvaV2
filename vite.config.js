@@ -43,8 +43,10 @@ export default defineConfig(async () => ({
     // Proxy API requests to the Axum backend during development
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:3000',
+        target: 'http://localhost:3000',
         changeOrigin: true,
+        proxyTimeout: 600000, // 10 minutes
+        timeout: 600000, // 10 minutes
       },
     },
   },
