@@ -99,8 +99,14 @@ export default function CanvasView() {
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const url = URL.createObjectURL(file);
-    await addImageToCanvas(url, file.name.replace(/\.[^.]+$/, ''));
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const dataUrl = ev.target?.result as string;
+      if (dataUrl) {
+        await addImageToCanvas(dataUrl, file.name.replace(/\.[^.]+$/, ''));
+      }
+    };
+    reader.readAsDataURL(file);
     e.target.value = '';
   }, []);
 
