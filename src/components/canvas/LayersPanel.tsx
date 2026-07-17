@@ -373,36 +373,6 @@ function LayerRow({ layer }: { layer: CanvasLayer }) {
             </div>
           )}
 
-          {/* Text Properties */}
-          {layer.type === 'text' && (
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <span className="text-[9px] text-white/30 w-10 shrink-0">Font</span>
-                <FontDropdown value={typeof fontFamily === 'string' ? fontFamily : 'Open Sans'} onChange={handleFontChange} />
-                <input
-                  type="number"
-                  min={1}
-                  max={500}
-                  value={fontSize}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={handleFontSize}
-                  className="w-10 bg-white/6 border border-white/10 rounded-md px-1 py-1 text-[10px] text-white outline-none focus:border-blue-500/70 transition-colors text-center shrink-0"
-                />
-              </div>
-              {isTypeOnPath && (
-                <label className="flex items-center gap-2 cursor-pointer mt-1 pl-1">
-                  <input 
-                    type="checkbox" 
-                    checked={repeatText} 
-                    onChange={handleRepeatToggle}
-                    onClick={(e) => e.stopPropagation()}
-                    className="rounded bg-white/10 border-white/20 text-blue-500 focus:ring-blue-500/30"
-                  />
-                  <span className="text-[10px] text-white/60">Repeat to fit path</span>
-                </label>
-              )}
-            </div>
-          )}
         </div>
       )}
     </div>

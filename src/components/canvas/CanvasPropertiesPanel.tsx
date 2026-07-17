@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import * as fabric from 'fabric';
-import { Move, RotateCcw, Maximize2, Blend, Type } from 'lucide-react';
+import { Move, RotateCcw, Maximize2, Blend, Type, Bold, Italic, AlignLeft, AlignCenter, AlignRight, Underline } from 'lucide-react';
 import { ColorInput } from './ColorInput';
+import { FontDropdown } from './FontDropdown';
+import { applyTextRepeat } from '../../utils/textOnPathUtils';
 import { useCanvasStore } from '../../store/useCanvasStore';
 
 interface CanvasPropertiesPanelProps {
@@ -20,6 +22,14 @@ interface ObjProps {
   fill?: string;
   stroke?: string;
   strokeWidth?: number;
+  fontFamily?: string;
+  fontSize?: number;
+  fontWeight?: string | number;
+  fontStyle?: string;
+  textAlign?: string;
+  underline?: boolean;
+  isTypeOnPath?: boolean;
+  repeatTextToFit?: boolean;
 }
 
 const BLEND_MODES = [
@@ -79,6 +89,14 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
       fill,
       stroke,
       strokeWidth: obj.strokeWidth || 0,
+      fontFamily: (obj as any).fontFamily || 'Open Sans',
+      fontSize: (obj as any).fontSize || 40,
+      fontWeight: (obj as any).fontWeight || 'normal',
+      fontStyle: (obj as any).fontStyle || 'normal',
+      textAlign: (obj as any).textAlign || 'left',
+      underline: (obj as any).underline || false,
+      isTypeOnPath: !!(obj as any)._isTypeOnPath,
+      repeatTextToFit: !!(obj as any)._repeatTextToFit,
     });
   }, [canvas]);
 
@@ -119,6 +137,36 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
       // sync to layer store
       const layerId = (obj as any)._canvasLayerId;
       if (layerId) updateLayer(layerId, { opacity: value });
+    } else if (key === 'fontFamily') {
+      obj.set('fontFamily', value);
+      if ((obj as any).styles) {
+        for (const lineIndex in (obj as any).styles) {
+          for (const charIndex in (obj as any).styles[lineIndex]) {
+            if ((obj as any).styles[lineIndex][charIndex].fontFamily) {
+              delete (obj as any).styles[lineIndex][charIndex].fontFamily;
+            }
+          }
+        }
+      }
+      if ((obj as any).isEditing) {
+        (obj as any).setSelectionStyles({ fontFamily: value });
+        if ((obj as any).hiddenTextarea) {
+          (obj as any).hiddenTextarea.style.fontFamily = `"${value}"`;
+        }
+        (obj as any).initDimensions();
+      }
+      if ('fonts' in document) {
+        document.fonts.load(`10pt "${value}"`).then(() => {
+          canvas.requestRenderAll();
+        }).catch(() => {});
+      }
+    } else if (key === 'repeatTextToFit') {
+      obj.set('_repeatTextToFit', value);
+      if (value) {
+        applyTextRepeat(obj as any);
+      } else if (!value && (obj as any)._originalText) {
+        obj.set('text', (obj as any)._originalText);
+      }
     } else {
       obj.set({ [key]: value } as any);
     }
@@ -251,6 +299,97 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
           </div>
         </div>
       </div>
+
+      {/* Text Properties */}
+      {(props.type === 'text' || props.type === 'i-text' || props.type === 'textbox') && (
+        <div className="space-y-2 pt-3 border-t border-white/6">
+          <div className="flex items-center gap-1.5 text-[9px] text-white/30 uppercase tracking-widest font-semibold">
+            <Type size={9} /> Text
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-white/35 w-12 shrink-0">Font</span>
+              <FontDropdown 
+                value={props.fontFamily || 'Open Sans'} 
+                onChange={(v) => applyProp('fontFamily', v)} 
+              />
+              <input
+                type="number"
+                min={1}
+                max={500}
+                value={props.fontSize}
+                onChange={(e) => applyProp('fontSize', Number(e.target.value))}
+                className="w-12 bg-white/6 border border-white/10 rounded-md px-1 py-1 text-[11px] text-white outline-none focus:border-blue-500/70 transition-colors text-center shrink-0"
+              />
+            </div>
+            
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[9px] text-white/35 w-12 shrink-0">Style</span>
+              <div className="flex bg-white/6 rounded-md overflow-hidden border border-white/10">
+                <button
+                  onClick={() => applyProp('fontWeight', props.fontWeight === 'bold' ? 'normal' : 'bold')}
+                  className={`p-1.5 transition-colors ${props.fontWeight === 'bold' ? 'bg-blue-600/30 text-blue-400' : 'text-white/60 hover:bg-white/10'}`}
+                >
+                  <Bold size={12} />
+                </button>
+                <button
+                  onClick={() => applyProp('fontStyle', props.fontStyle === 'italic' ? 'normal' : 'italic')}
+                  className={`p-1.5 transition-colors border-l border-white/5 ${props.fontStyle === 'italic' ? 'bg-blue-600/30 text-blue-400' : 'text-white/60 hover:bg-white/10'}`}
+                >
+                  <Italic size={12} />
+                </button>
+                <button
+                  onClick={() => applyProp('underline', !props.underline)}
+                  className={`p-1.5 transition-colors border-l border-white/5 ${props.underline ? 'bg-blue-600/30 text-blue-400' : 'text-white/60 hover:bg-white/10'}`}
+                >
+                  <Underline size={12} />
+                </button>
+              </div>
+
+              <div className="flex ml-auto bg-white/6 rounded-md overflow-hidden border border-white/10">
+                <button
+                  onClick={() => applyProp('textAlign', 'left')}
+                  className={`p-1.5 transition-colors ${props.textAlign === 'left' ? 'bg-blue-600/30 text-blue-400' : 'text-white/60 hover:bg-white/10'}`}
+                >
+                  <AlignLeft size={12} />
+                </button>
+                <button
+                  onClick={() => applyProp('textAlign', 'center')}
+                  className={`p-1.5 transition-colors border-l border-white/5 ${props.textAlign === 'center' ? 'bg-blue-600/30 text-blue-400' : 'text-white/60 hover:bg-white/10'}`}
+                >
+                  <AlignCenter size={12} />
+                </button>
+                <button
+                  onClick={() => applyProp('textAlign', 'right')}
+                  className={`p-1.5 transition-colors border-l border-white/5 ${props.textAlign === 'right' ? 'bg-blue-600/30 text-blue-400' : 'text-white/60 hover:bg-white/10'}`}
+                >
+                  <AlignRight size={12} />
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-[9px] text-white/35 w-12 shrink-0">Color</span>
+              <ColorInput 
+                value={props.fill || '#000000'} 
+                onChange={(val) => applyProp('fill', val)} 
+                className="w-full"
+              />
+            </div>
+            
+            {props.isTypeOnPath && (
+              <label className="flex items-center gap-2 cursor-pointer mt-1">
+                <input 
+                  type="checkbox" 
+                  checked={props.repeatTextToFit} 
+                  onChange={(e) => applyProp('repeatTextToFit', e.target.checked)}
+                  className="rounded bg-white/10 border-white/20 text-blue-500 focus:ring-blue-500/30"
+                />
+                <span className="text-[10px] text-white/60">Repeat to fit path</span>
+              </label>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Shape Properties */}
       {props.type && ['rect', 'ellipse', 'circle', 'path', 'polygon', 'line', 'triangle'].includes(props.type.toLowerCase()) && (
