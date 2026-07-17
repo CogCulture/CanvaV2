@@ -458,6 +458,8 @@ export default function ArtboardCanvas({ width, height, onCanvasReady }: Artboar
       // Eraser no longer uses isDrawingMode, so only pen strokes reach here
       path._canvasLayerId = uuidv4();
       path._layerName = 'Pen Stroke';
+      syncLayers(canvas);
+      markCanvasDirty();
     });
 
     canvas.on('object:modified', () => { syncLayers(canvas); markCanvasDirty(); });
