@@ -14,7 +14,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { Eye, EyeOff, Lock, Unlock, Trash2, GripVertical, Plus, Image as ImageIcon, Pencil, Type, Square } from 'lucide-react';
+import { Eye, EyeOff, Lock, Unlock, Trash2, GripVertical, Plus, Image as ImageIcon, Pencil, Type, Square, Circle } from 'lucide-react';
 import { FontDropdown } from './FontDropdown';
 import { applyTextRepeat } from '../../utils/textOnPathUtils';
 import { useCanvasStore, CanvasLayer } from '../../store/useCanvasStore';
@@ -492,7 +492,13 @@ export default function LayersPanel() {
                   onClick={() => { setShowAddMenu(false); setActiveTool('rect'); }}
                   className="flex items-center gap-2 px-3 py-1.5 text-[11px] text-white/70 hover:text-white hover:bg-white/10 text-left transition-colors"
                 >
-                  <Square size={12} /> Shape
+                  <Square size={12} /> Rectangle
+                </button>
+                <button
+                  onClick={() => { setShowAddMenu(false); setActiveTool('ellipse'); }}
+                  className="flex items-center gap-2 px-3 py-1.5 text-[11px] text-white/70 hover:text-white hover:bg-white/10 text-left transition-colors"
+                >
+                  <Circle size={12} /> Ellipse
                 </button>
                 <button
                   onClick={() => { setShowAddMenu(false); addTextToCanvas(); setActiveTool('move'); }}
