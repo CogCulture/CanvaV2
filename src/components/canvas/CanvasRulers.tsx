@@ -109,16 +109,20 @@ export default function CanvasRulers({ canvasContainerRef, fabricCanvas, unit }:
     return niceFraction * Math.pow(10, power);
   };
   
-  const stepSize = getLogicalStep(zoom);
-  
   const drawRulerMarks = (isVertical: boolean, scrollOffset: number) => {
+    const pxPerUnit = unit === 'in' ? 96 : unit === 'cm' ? 37.79527559 : 1;
+    const stepSize = getLogicalStep(zoom * pxPerUnit);
+    
+    const minD = -10000 / pxPerUnit;
+    const maxD = 15000 / pxPerUnit;
+    const startI = Math.floor(minD / stepSize) * stepSize;
+    
     const marks = [];
-    const minDimension = -10000;
-    const maxDimension = 15000;
     const offset = isVertical ? artboardOffset.y : artboardOffset.x;
     
-    for (let i = minDimension; i < maxDimension; i += stepSize) {
-      const logicalPos = i * zoom;
+    for (let i = startI; i < maxD; i += stepSize) {
+      const displayVal = Math.round(i * 100) / 100;
+      const logicalPos = i * pxPerUnit * zoom;
       const screenPos = logicalPos + offset - scrollOffset;
       
       // Simple culling to prevent rendering thousands of off-screen DOM nodes
@@ -145,13 +149,14 @@ export default function CanvasRulers({ canvasContainerRef, fabricCanvas, unit }:
               transformOrigin: 'top left'
             }}
           >
-            {i}
+            {displayVal}
           </span>
         </div>
       );
     }
     return marks;
   };
+
 
   if (!showRulers) return null;
 

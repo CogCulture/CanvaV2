@@ -236,9 +236,9 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
                   onChange={(e) => setRulerUnit(e.target.value as 'px' | 'in' | 'cm')}
                   className="flex-1 bg-white/6 border border-white/10 rounded-md px-2 py-1 text-[11px] text-white outline-none focus:border-blue-500/70 transition-colors"
                 >
-                  <option value="px">Pixels (px)</option>
-                  <option value="in">Inches (in)</option>
-                  <option value="cm">Centimeters (cm)</option>
+                  <option value="px" className="bg-[#1c1c1e] text-white">Pixels (px)</option>
+                  <option value="in" className="bg-[#1c1c1e] text-white">Inches (in)</option>
+                  <option value="cm" className="bg-[#1c1c1e] text-white">Centimeters (cm)</option>
                 </select>
               </div>
             </div>
