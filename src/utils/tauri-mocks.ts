@@ -1,8 +1,5 @@
 export async function invoke<T>(cmd: string, args: Record<string, any> = {}): Promise<T> {
-  const isCloud = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-  const apiBase = isCloud ? '' : 'http://localhost:3000';
-  
-  const response = await fetch(`${apiBase}/api/invoke`, {
+  const response = await fetch(`/api/invoke`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -94,9 +91,7 @@ export async function open(options: any) {
       formData.append('file', file);
       
       try {
-        const isCloud = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-        const apiBase = isCloud ? '' : 'http://localhost:3000';
-        const res = await fetch(`${apiBase}/api/upload`, {
+        const res = await fetch(`/api/upload`, {
           method: 'POST',
           body: formData,
         });
