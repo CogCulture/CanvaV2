@@ -20,7 +20,7 @@ import { applyTextRepeat } from '../../utils/textOnPathUtils';
 import { useCanvasStore, CanvasLayer } from '../../store/useCanvasStore';
 import { useEditorStore } from '../../store/useEditorStore';
 import { INITIAL_ADJUSTMENTS } from '../../utils/adjustments';
-import { globalFabricCanvas, addImageToCanvas } from './ArtboardCanvas';
+import { globalFabricCanvas, addImageToCanvas, addTextToCanvas } from './ArtboardCanvas';
 import { toast } from 'react-toastify';
 import { uploadDataUrlToCloud } from '../../utils/tauri-mocks';
 
@@ -410,7 +410,8 @@ function LayerRow({ layer }: { layer: CanvasLayer }) {
 }
 
 export default function LayersPanel() {
-  const { layers, setLayers, reorderLayers } = useCanvasStore();
+  const { layers, setLayers, reorderLayers, setActiveTool } = useCanvasStore();
+  const [showAddMenu, setShowAddMenu] = useState(false);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const handleDragEnd = useCallback(
@@ -469,13 +470,40 @@ export default function LayersPanel() {
         style={{ borderColor: 'rgba(255,255,255,0.07)' }}
       >
         <span className="text-[10px] text-white/50 font-semibold uppercase tracking-widest">Layers</span>
-        <button
-          onClick={handleAddImage}
-          className="flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
-          title="Add image layer"
-        >
-          <Plus size={12} /> Add
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowAddMenu(!showAddMenu)}
+            className="flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+            title="Add new layer"
+          >
+            <Plus size={12} /> Add
+          </button>
+          {showAddMenu && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setShowAddMenu(false)} />
+              <div className="absolute top-full right-0 mt-1 w-32 bg-[#2a2a2d] border border-white/10 rounded shadow-xl py-1 z-50 flex flex-col">
+                <button
+                  onClick={() => { setShowAddMenu(false); handleAddImage(); }}
+                  className="flex items-center gap-2 px-3 py-1.5 text-[11px] text-white/70 hover:text-white hover:bg-white/10 text-left transition-colors"
+                >
+                  <ImageIcon size={12} /> Image
+                </button>
+                <button
+                  onClick={() => { setShowAddMenu(false); setActiveTool('rect'); }}
+                  className="flex items-center gap-2 px-3 py-1.5 text-[11px] text-white/70 hover:text-white hover:bg-white/10 text-left transition-colors"
+                >
+                  <Square size={12} /> Shape
+                </button>
+                <button
+                  onClick={() => { setShowAddMenu(false); addTextToCanvas(); setActiveTool('move'); }}
+                  className="flex items-center gap-2 px-3 py-1.5 text-[11px] text-white/70 hover:text-white hover:bg-white/10 text-left transition-colors"
+                >
+                  <Type size={12} /> Text
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Layer list */}
