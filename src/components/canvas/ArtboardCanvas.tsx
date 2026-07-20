@@ -209,6 +209,8 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
       const boardRect = new fabric.Rect({
         left: board.x,
         top: board.y,
+        originX: 'left',
+        originY: 'top',
         width: board.width,
         height: board.height,
         fill: '#ffffff',
@@ -697,6 +699,7 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
         startPos.current = { x: pointer.x, y: pointer.y };
         if (activeTool === 'rect') {
           currentShape.current = new fabric.Rect({
+            originX: 'left', originY: 'top',
             left: startPos.current.x, top: startPos.current.y,
             width: 0, height: 0, fill: 'transparent', stroke: '#000000', strokeWidth: 2, selectable: false,
           });
