@@ -25,9 +25,9 @@ const ARTBOARD_RECT_MARKER = '__artboardRect__';
  * If the object straddles or sits outside all artboards, returns null.
  */
 function getOwningArtboard(obj: fabric.Object, artboards: Artboard[]): Artboard | null {
-  const { left = 0, top = 0, width = 0, height = 0, scaleX = 1, scaleY = 1 } = obj;
-  const cx = left + (width * scaleX) / 2;
-  const cy = top + (height * scaleY) / 2;
+  const bounds = obj.getBoundingRect();
+  const cx = bounds.left + bounds.width / 2;
+  const cy = bounds.top + bounds.height / 2;
   for (const board of artboards) {
     if (cx >= board.x && cx <= board.x + board.width && cy >= board.y && cy <= board.y + board.height) {
       return board;

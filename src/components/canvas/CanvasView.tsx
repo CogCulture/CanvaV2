@@ -39,18 +39,19 @@ function ArtboardLabels({ fabricCanvas }: { fabricCanvas: fabric.Canvas | null }
   return (
     <div className="absolute inset-0 pointer-events-none z-[8005]">
       {artboards.map(board => {
-        const screenX = board.x * vpt[0] + vpt[4];
-        const screenY = board.y * vpt[3] + vpt[5];
+        // Bottom right corner of the artboard in screen coordinates
+        const screenX = (board.x + board.width) * vpt[0] + vpt[4];
+        const screenY = (board.y + board.height) * vpt[3] + vpt[5];
         const isActive = board.id === activeArtboardId;
         return (
           <div
             key={board.id}
             className="absolute"
-            style={{ left: screenX, top: screenY - 22, transformOrigin: 'bottom left' }}
+            style={{ left: screenX, top: screenY + 4, transform: 'translateX(-100%)' }}
           >
             <span
               className={`text-[10px] font-semibold px-1.5 py-0.5 rounded select-none ${
-                isActive ? 'text-indigo-300' : 'text-white/40'
+                isActive ? 'text-cyan-400' : 'text-cyan-700/50'
               }`}
               style={{ fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap' }}
             >
