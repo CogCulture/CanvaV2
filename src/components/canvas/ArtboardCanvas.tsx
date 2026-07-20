@@ -465,9 +465,8 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
           if (board) {
             const owned = canvas.getObjects().filter((o: any) => {
               if (o[ARTBOARD_RECT_MARKER] || !o._canvasLayerId) return false;
-              const cx = (o.left ?? 0) + ((o.width ?? 0) * (o.scaleX ?? 1)) / 2;
-              const cy = (o.top ?? 0) + ((o.height ?? 0) * (o.scaleY ?? 1)) / 2;
-              return cx >= board.x && cx <= board.x + board.width && cy >= board.y && cy <= board.y + board.height;
+              const owningBoard = getOwningArtboard(o, useCanvasStore.getState().artboards);
+              return owningBoard?.id === board.id;
             });
             artboardMoveRef.current = {
               boardId,
