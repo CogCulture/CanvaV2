@@ -673,8 +673,12 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
     });
 
     const onMouseDown = (o: any) => {
-      // Skip artboard rects for tool events
-      if (o.target && (o.target as any)[ARTBOARD_RECT_MARKER]) return;
+      const isArtboardTarget = o.target && (o.target as any)[ARTBOARD_RECT_MARKER];
+
+      // Object-mode eraser: never erase the artboard background rect
+      if (isArtboardTarget && activeTool === 'eraser' && eraserMode === 'object') return;
+      // Move tool: artboard drag is handled by the global mouse:down handler above, skip here
+      if (isArtboardTarget && activeTool === 'move') return;
 
       if (activeTool === 'eraser' && eraserMode === 'freehand') {
         isEraserDrawing.current = true;

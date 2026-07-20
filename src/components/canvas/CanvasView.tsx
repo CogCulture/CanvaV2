@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
+import React, { useCallback, useState, useRef, useMemo, useEffect } from 'react';
 import * as fabric from 'fabric';
 import { X, ZoomIn, ZoomOut, Image as ImageIcon, LayoutTemplate } from 'lucide-react';
 import { useCanvasStore } from '../../store/useCanvasStore';
@@ -62,6 +62,176 @@ function ArtboardLabels({ fabricCanvas }: { fabricCanvas: fabric.Canvas | null }
     </div>
   );
 }
+
+const SCROLLBAR_SIZE = 12; // px
+
+/** Custom scrollbar overlay that reflects / controls the fabric viewport transform */
+function CanvasScrollbars({ fabricCanvas }: { fabricCanvas: fabric.Canvas | null }) {
+  const { artboards } = useCanvasStore();
+  const [vpt, setVpt] = useState<number[]>([1, 0, 0, 1, 0, 0]);
+  const [canvasSize, setCanvasSize] = useState({ w: 1, h: 1 });
+  const isDraggingH = useRef(false);
+  const isDraggingV = useRef(false);
+  const dragStart = useRef({ mouseX: 0, mouseY: 0, vptX: 0, vptY: 0 });
+
+  useEffect(() => {
+    if (!fabricCanvas) return;
+    const update = () => {
+      const v = fabricCanvas.viewportTransform;
+      if (v) setVpt([...v]);
+      setCanvasSize({ w: fabricCanvas.getWidth(), h: fabricCanvas.getHeight() });
+    };
+    update();
+    fabricCanvas.on('after:render', update);
+    return () => { fabricCanvas.off('after:render', update); };
+  }, [fabricCanvas]);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!fabricCanvas) return;
+      const v = [...(fabricCanvas.viewportTransform ?? [1, 0, 0, 1, 0, 0])];
+
+      if (isDraggingH.current) {
+        const { worldMin, worldMax, thumbRatio } = computeH();
+        const worldRange = worldMax - worldMin;
+        const trackW = canvasSize.w - SCROLLBAR_SIZE;
+        const dx = e.clientX - dragStart.current.mouseX;
+        // how much world-space to scroll per pixel of thumb travel
+        const dWorld = (dx / (trackW * (1 - thumbRatio))) * worldRange;
+        // dragStart.vptX is the viewport offset at drag start; shift it by -dWorld * zoom
+        v[4] = dragStart.current.vptX - dWorld * v[0];
+        (fabricCanvas as any).viewportTransform = v;
+        fabricCanvas.requestRenderAll();
+      }
+      if (isDraggingV.current) {
+        const { worldMin, worldMax, thumbRatio } = computeV();
+        const worldRange = worldMax - worldMin;
+        const trackH = canvasSize.h - SCROLLBAR_SIZE;
+        const dy = e.clientY - dragStart.current.mouseY;
+        const dWorld = (dy / (trackH * (1 - thumbRatio))) * worldRange;
+        const newVptY = dragStart.current.vptY - dWorld * v[3];
+        v[5] = newVptY;
+        (fabricCanvas as any).viewportTransform = v;
+        fabricCanvas.requestRenderAll();
+      }
+    };
+    const onUp = () => { isDraggingH.current = false; isDraggingV.current = false; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); };
+  }, [fabricCanvas, canvasSize]);
+
+  // Compute scroll world bounds from artboards (with 200px padding each side)
+  const PAD = 200;
+  const allX = artboards.flatMap(b => [b.x, b.x + b.width]);
+  const allY = artboards.flatMap(b => [b.y, b.y + b.height]);
+  const sceneMinX = allX.length ? Math.min(...allX) - PAD : -PAD;
+  const sceneMaxX = allX.length ? Math.max(...allX) + PAD : PAD;
+  const sceneMinY = allY.length ? Math.min(...allY) - PAD : -PAD;
+  const sceneMaxY = allY.length ? Math.max(...allY) + PAD : PAD;
+
+  const zoom = vpt[0] || 1;
+  // viewport left edge in scene coords
+  const viewLeft = -vpt[4] / zoom;
+  const viewRight = viewLeft + canvasSize.w / zoom;
+  const viewTop = -vpt[5] / zoom;
+  const viewBottom = viewTop + canvasSize.h / zoom;
+
+  const worldMinX = Math.min(sceneMinX, viewLeft);
+  const worldMaxX = Math.max(sceneMaxX, viewRight);
+  const worldMinY = Math.min(sceneMinY, viewTop);
+  const worldMaxY = Math.max(sceneMaxY, viewBottom);
+
+  function computeH() {
+    const worldRange = worldMaxX - worldMinX;
+    const thumbRatio = Math.min(1, (viewRight - viewLeft) / worldRange);
+    const thumbLeft = ((viewLeft - worldMinX) / worldRange) * (canvasSize.w - SCROLLBAR_SIZE);
+    const thumbWidth = thumbRatio * (canvasSize.w - SCROLLBAR_SIZE);
+    return { worldMin: worldMinX, worldMax: worldMaxX, thumbRatio, thumbLeft, thumbWidth };
+  }
+  function computeV() {
+    const worldRange = worldMaxY - worldMinY;
+    const thumbRatio = Math.min(1, (viewBottom - viewTop) / worldRange);
+    const thumbTop = ((viewTop - worldMinY) / worldRange) * (canvasSize.h - SCROLLBAR_SIZE);
+    const thumbHeight = thumbRatio * (canvasSize.h - SCROLLBAR_SIZE);
+    return { worldMin: worldMinY, worldMax: worldMaxY, thumbRatio, thumbTop, thumbHeight };
+  }
+
+  const h = computeH();
+  const v = computeV();
+  const showH = h.thumbRatio < 0.999;
+  const showV = v.thumbRatio < 0.999;
+  if (!showH && !showV) return null;
+
+  const trackStyle: React.CSSProperties = {
+    background: 'rgba(255,255,255,0.04)',
+    borderRadius: 6,
+  };
+  const thumbStyle: React.CSSProperties = {
+    background: 'rgba(255,255,255,0.22)',
+    borderRadius: 6,
+    cursor: 'pointer',
+    transition: 'background 0.1s',
+  };
+
+  return (
+    <>
+      {/* Horizontal scrollbar */}
+      {showH && (
+        <div
+          className="absolute bottom-0 left-0 z-[8090] pointer-events-auto"
+          style={{ ...trackStyle, height: SCROLLBAR_SIZE, right: showV ? SCROLLBAR_SIZE : 0 }}
+        >
+          <div
+            className="absolute top-1 bottom-1 hover:bg-white/40"
+            style={{
+              ...thumbStyle,
+              left: Math.max(0, h.thumbLeft),
+              width: Math.max(24, h.thumbWidth),
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              isDraggingH.current = true;
+              dragStart.current = {
+                mouseX: e.clientX,
+                mouseY: e.clientY,
+                vptX: fabricCanvas?.viewportTransform?.[4] ?? 0,
+                vptY: fabricCanvas?.viewportTransform?.[5] ?? 0,
+              };
+            }}
+          />
+        </div>
+      )}
+      {/* Vertical scrollbar */}
+      {showV && (
+        <div
+          className="absolute right-0 top-0 z-[8090] pointer-events-auto"
+          style={{ ...trackStyle, width: SCROLLBAR_SIZE, bottom: showH ? SCROLLBAR_SIZE : 0 }}
+        >
+          <div
+            className="absolute left-1 right-1 hover:bg-white/40"
+            style={{
+              ...thumbStyle,
+              top: Math.max(0, v.thumbTop),
+              height: Math.max(24, v.thumbHeight),
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              isDraggingV.current = true;
+              dragStart.current = {
+                mouseX: e.clientX,
+                mouseY: e.clientY,
+                vptX: fabricCanvas?.viewportTransform?.[4] ?? 0,
+                vptY: fabricCanvas?.viewportTransform?.[5] ?? 0,
+              };
+            }}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
 
 export default function CanvasView() {
   const {
@@ -343,6 +513,9 @@ export default function CanvasView() {
 
             {/* Artboard name labels overlay */}
             <ArtboardLabels fabricCanvas={canvas} />
+
+            {/* Scrollbars */}
+            <CanvasScrollbars fabricCanvas={canvas} />
 
             <CanvasRulers canvasContainerRef={containerRef} fabricCanvas={canvas} unit={rulerUnit} />
           </div>
