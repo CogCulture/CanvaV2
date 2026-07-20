@@ -419,7 +419,8 @@ function LayerRow({ layer }: { layer: CanvasLayer }) {
 }
 
 export default function LayersPanel() {
-  const { layers, setLayers, reorderLayers, setActiveTool } = useCanvasStore();
+  const { layers, setLayers, reorderLayers, setActiveTool, activeArtboardId, artboards } = useCanvasStore();
+  const activeBoard = artboards.find(b => b.id === activeArtboardId);
   const [showAddMenu, setShowAddMenu] = useState(false);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -521,22 +522,49 @@ export default function LayersPanel() {
         </div>
       </div>
 
-      {/* Layer list */}
+      {/* Layer list — filtered to active artboard */}
       <div className="flex-1 overflow-y-auto p-2">
-        {layers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full py-8 text-white/15 text-center">
-            <ImageIcon size={20} className="mb-2" />
-            <p className="text-[10px]">No layers yet</p>
-          </div>
-        ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={layers.map((l) => l.id)} strategy={verticalListSortingStrategy}>
-              {layers.map((layer) => (
-                <LayerRow key={layer.id} layer={layer} />
-              ))}
-            </SortableContext>
-          </DndContext>
-        )}
+        {(() => {
+          const artboardLayers = layers.filter(l => l.artboardId === activeArtboardId);
+          const unassociated = layers.filter(l => l.artboardId === null);
+
+          if (layers.length === 0) {
+            return (
+              <div className="flex flex-col items-center justify-center h-full py-8 text-white/15 text-center">
+                <ImageIcon size={20} className="mb-2" />
+                <p className="text-[10px]">No layers yet</p>
+              </div>
+            );
+          }
+
+          if (artboardLayers.length === 0 && unassociated.length === 0) {
+            return (
+              <div className="flex flex-col items-center justify-center h-full py-8 text-white/15 text-center">
+                <ImageIcon size={20} className="mb-2" />
+                <p className="text-[10px]">No layers on this artboard</p>
+                <p className="text-[9px] mt-1 text-white/10">Add objects to &ldquo;{activeBoard?.name}&rdquo;</p>
+              </div>
+            );
+          }
+
+          return (
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={layers.map((l) => l.id)} strategy={verticalListSortingStrategy}>
+                {artboardLayers.map((layer) => (
+                  <LayerRow key={layer.id} layer={layer} />
+                ))}
+                {unassociated.length > 0 && (
+                  <>
+                    <div className="text-[9px] text-white/25 uppercase tracking-widest font-semibold px-1 pt-3 pb-1">Unassociated</div>
+                    {unassociated.map((layer) => (
+                      <LayerRow key={layer.id} layer={layer} />
+                    ))}
+                  </>
+                )}
+              </SortableContext>
+            </DndContext>
+          );
+        })()}
       </div>
     </div>
   );

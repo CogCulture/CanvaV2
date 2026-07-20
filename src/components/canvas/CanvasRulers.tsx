@@ -9,72 +9,39 @@ interface RulerProps {
 }
 
 export default function CanvasRulers({ canvasContainerRef, fabricCanvas, unit }: RulerProps) {
-  const [scroll, setScroll] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
+  const [vptOffset, setVptOffset] = useState({ x: 0, y: 0 });
   const { guides, setGuides, showRulers, activeGuideId, setActiveGuideId } = useCanvasStore();
   
   const rulerSize = 24;
 
   useEffect(() => {
-    if (!canvasContainerRef.current) return;
-    const el = canvasContainerRef.current;
-    
-    const handleScroll = () => {
-      setScroll({ x: el.scrollLeft, y: el.scrollTop });
-    };
-    el.addEventListener('scroll', handleScroll);
-    
-    return () => el.removeEventListener('scroll', handleScroll);
-  }, [canvasContainerRef]);
+    if (!fabricCanvas) return;
 
-  const [artboardOffset, setArtboardOffset] = useState({ x: 0, y: 0 });
-
-  useEffect(() => {
-    if (!fabricCanvas || !canvasContainerRef.current) return;
-    
-    const container = canvasContainerRef.current;
-    const canvasEl = fabricCanvas.getElement().closest('.canvas-container') as HTMLElement;
-
-    const updateCanvasState = () => {
+    const updateVpt = () => {
+      const vpt = fabricCanvas.viewportTransform;
+      if (!vpt) return;
       setZoom(fabricCanvas.getZoom());
-      
-      if (container && canvasEl) {
-        const containerRect = container.getBoundingClientRect();
-        const canvasRect = canvasEl.getBoundingClientRect();
-        
-        const scrollContentOriginX = containerRect.left - container.scrollLeft;
-        const scrollContentOriginY = containerRect.top - container.scrollTop;
-        
-        setArtboardOffset({
-          x: canvasRect.left - scrollContentOriginX - rulerSize,
-          y: canvasRect.top - scrollContentOriginY - rulerSize
-        });
-      }
+      setVptOffset({ x: vpt[4], y: vpt[5] });
     };
 
-    updateCanvasState();
-    
-    const delayedUpdate = () => setTimeout(updateCanvasState, 0);
-    
-    const ro = new ResizeObserver(updateCanvasState);
-    if (canvasEl) ro.observe(canvasEl);
-    if (container) ro.observe(container);
-    
-    fabricCanvas.on('mouse:wheel', delayedUpdate);
-    fabricCanvas.on('mouse:move', updateCanvasState);
-    fabricCanvas.on('after:render', updateCanvasState);
-    window.addEventListener('resize', updateCanvasState);
-    container.addEventListener('scroll', updateCanvasState);
-    
+    updateVpt();
+    fabricCanvas.on('after:render', updateVpt);
+    fabricCanvas.on('mouse:wheel', updateVpt);
+    window.addEventListener('resize', updateVpt);
+
     return () => {
-      ro.disconnect();
-      fabricCanvas.off('mouse:wheel', delayedUpdate);
-      fabricCanvas.off('mouse:move', updateCanvasState);
-      fabricCanvas.off('after:render', updateCanvasState);
-      window.removeEventListener('resize', updateCanvasState);
-      container.removeEventListener('scroll', updateCanvasState);
+      fabricCanvas.off('after:render', updateVpt);
+      fabricCanvas.off('mouse:wheel', updateVpt);
+      window.removeEventListener('resize', updateVpt);
     };
-  }, [fabricCanvas, canvasContainerRef]);
+  }, [fabricCanvas]);
+
+  // Derive artboardOffset from vpt (origin 0,0 in scene maps to vptOffset on screen, minus ruler padding)
+  const artboardOffset = { x: vptOffset.x - rulerSize, y: vptOffset.y - rulerSize };
+  // Ruler scroll offset is 0 — we track via vpt instead
+  const scroll = { x: 0, y: 0 };
+
 
   const addGuide = (axis: 'horizontal' | 'vertical', pos: number) => {
     setGuides(prev => [...prev, { id: crypto.randomUUID(), axis, pos, locked: false }]);

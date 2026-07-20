@@ -19,6 +19,15 @@ export const ARTBOARD_PRESETS: ArtboardPreset[] = [
   { name: 'Custom', width: 1920, height: 1080, ratio: 'custom' },
 ];
 
+export interface Artboard {
+  id: string;
+  name: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface CanvasLayer {
   id: string;
   name: string;
@@ -28,6 +37,8 @@ export interface CanvasLayer {
   opacity: number;
   type: 'image' | 'text' | 'shape' | 'background';
   thumbnail?: string;
+  /** The artboard this layer belongs to (null = unassociated / spans multiple) */
+  artboardId: string | null;
 }
 
 export interface GuideLine {
@@ -99,9 +110,19 @@ async function persistToStorageAsync(canvases: SavedCanvas[]) {
 }
 
 export interface CanvasState {
+  // ── Artboards (infinite canvas) ───────────────────────────────────────
+  artboards: Artboard[];
+  activeArtboardId: string | null;
+  addArtboard: (preset: ArtboardPreset, x?: number, y?: number) => string;
+  removeArtboard: (id: string) => void;
+  setActiveArtboard: (id: string | null) => void;
+  updateArtboard: (id: string, patch: Partial<Artboard>) => void;
+
+  // ── Legacy single-artboard convenience props ──────────────────────────
   artboardWidth: number;
   artboardHeight: number;
   artboardPreset: ArtboardPreset | null;
+
   projectTitle: string;
   layers: CanvasLayer[];
   activeLayerId: string | null;
@@ -167,9 +188,55 @@ export interface CanvasState {
 export const useCanvasStore = create<CanvasState>((set, get) => ({
   rulerUnit: 'px',
   setRulerUnit: (unit) => set({ rulerUnit: unit }),
+
+  // ── Artboards ─────────────────────────────────────────────────────────
+  artboards: [],
+  activeArtboardId: null,
+
+  addArtboard: (preset, x = 0, y = 0) => {
+    const id = crypto.randomUUID();
+    const newBoard: Artboard = {
+      id,
+      name: preset.name,
+      x,
+      y,
+      width: preset.width,
+      height: preset.height,
+    };
+    set((s) => ({
+      artboards: [...s.artboards, newBoard],
+      activeArtboardId: id,
+      artboardWidth: preset.width,
+      artboardHeight: preset.height,
+    }));
+    return id;
+  },
+
+  removeArtboard: (id) =>
+    set((s) => ({
+      artboards: s.artboards.filter((b) => b.id !== id),
+      activeArtboardId: s.activeArtboardId === id ? (s.artboards[0]?.id ?? null) : s.activeArtboardId,
+    })),
+
+  setActiveArtboard: (id) => {
+    const board = get().artboards.find((b) => b.id === id) ?? null;
+    set({
+      activeArtboardId: id,
+      artboardWidth: board?.width ?? get().artboardWidth,
+      artboardHeight: board?.height ?? get().artboardHeight,
+    });
+  },
+
+  updateArtboard: (id, patch) =>
+    set((s) => ({
+      artboards: s.artboards.map((b) => (b.id === id ? { ...b, ...patch } : b)),
+    })),
+
+  // ── Legacy convenience props ───────────────────────────────────────────
   artboardWidth: 1920,
   artboardHeight: 1080,
   artboardPreset: ARTBOARD_PRESETS[0],
+
   projectTitle: 'Untitled Canvas',
   layers: [],
   activeLayerId: null,
@@ -242,7 +309,17 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     set({ isSetupModalOpen: true, pendingImagePath: imagePath, pendingImageDataUrl: imageDataUrl ?? null }),
   closeSetupModal: () =>
     set({ isSetupModalOpen: false, pendingImagePath: null, pendingImageDataUrl: null, pendingRestoredCanvas: null }),
-  openCanvasView: (preset, imagePath, imageDataUrl, restoredCanvas) =>
+  openCanvasView: (preset, imagePath, imageDataUrl, restoredCanvas) => {
+    // Create the initial artboard
+    const firstBoardId = crypto.randomUUID();
+    const firstBoard: Artboard = {
+      id: firstBoardId,
+      name: preset.name,
+      x: 0,
+      y: 0,
+      width: preset.width,
+      height: preset.height,
+    };
     set({
       isCanvasViewOpen: true,
       isCanvasHomeOpen: false,
@@ -259,7 +336,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       projectTitle: restoredCanvas?.name ?? 'Untitled Canvas',
       isCanvasDirty: false,
       pendingRestoredCanvas: restoredCanvas ?? null,
-    }),
+      artboards: [firstBoard],
+      activeArtboardId: firstBoardId,
+    });
+  },
   closeCanvasView: () =>
     set({
       isCanvasViewOpen: false,
@@ -270,6 +350,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
       isCanvasDirty: false,
       currentSavedCanvasId: null,
       pendingRestoredCanvas: null,
+      artboards: [],
+      activeArtboardId: null,
     }),
   openImageEdit: (layerId, dataUrl) => set({ imageEditLayerId: layerId, imageEditDataUrl: dataUrl }),
   closeImageEdit: () => set({ imageEditLayerId: null, imageEditDataUrl: null }),
