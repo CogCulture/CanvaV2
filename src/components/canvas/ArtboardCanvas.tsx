@@ -58,19 +58,15 @@ function applyEraserStroke(
   const strokeSceneRight  = Math.max(...xs) + brushRadius;
   const strokeSceneBottom = Math.max(...ys) + brushRadius;
 
-  const strokeScreenLeft   = strokeSceneLeft   * zoom + vpt[4];
-  const strokeScreenTop    = strokeSceneTop    * zoom + vpt[5];
-  const strokeScreenRight  = strokeSceneRight  * zoom + vpt[4];
-  const strokeScreenBottom = strokeSceneBottom * zoom + vpt[5];
 
   const targets = canvas.getObjects().filter((obj: any) => {
     if (!obj._canvasLayerId || obj[ARTBOARD_RECT_MARKER]) return false;
     const ob = obj.getBoundingRect();
     return (
-      strokeScreenLeft   < ob.left + ob.width  &&
-      strokeScreenRight  > ob.left              &&
-      strokeScreenTop    < ob.top  + ob.height  &&
-      strokeScreenBottom > ob.top
+      strokeSceneLeft   < ob.left + ob.width  &&
+      strokeSceneRight  > ob.left              &&
+      strokeSceneTop    < ob.top  + ob.height  &&
+      strokeSceneBottom > ob.top
     );
   });
 
@@ -217,7 +213,7 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
         stroke: isActive ? '#6366f1' : 'rgba(255,255,255,0.15)',
         strokeWidth: isActive ? 2 : 1,
         // Movable but no resize / rotate handles
-        selectable: true,
+        selectable: useCanvasStore.getState().activeTool === 'move',
         evented: true,
         hasControls: false,
         hasBorders: true,

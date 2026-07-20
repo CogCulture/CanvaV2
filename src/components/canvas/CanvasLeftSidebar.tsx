@@ -164,7 +164,7 @@ export default function CanvasLeftSidebar() {
               onClick={() => setEraserMode('freehand')}
               className={`text-left px-2 py-1.5 rounded text-xs transition-colors ${eraserMode === 'freehand' ? 'bg-blue-600 text-white' : 'text-white/60 hover:text-white hover:bg-white/10'}`}
             >
-              Freehand Brush
+              Freehand Eraser
             </button>
             <button
               onClick={() => setEraserMode('object')}

@@ -8,13 +8,20 @@ const bgRect = new fabric.Rect({
   originX: 'left',
   originY: 'top'
 });
+const localErasePath = new fabric.Path('M 0 0 L 10 10', {
+  fill: '',
+  stroke: 'black',
+  strokeWidth: 5,
+  globalCompositeOperation: 'destination-out',
+});
 try {
   const clipGroup = new fabric.Group([bgRect], {
     originX: 'center',
     originY: 'center',
     objectCaching: true
   });
-  console.log('Group created successfully');
+  clipGroup.add(localErasePath);
+  console.log('Path added successfully');
 } catch (e) {
-  console.error('Group creation failed:', e.message);
+  console.error('Path addition failed:', e.message);
 }
