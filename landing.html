@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pixora – The Creative Studio for Serious Work</title>
+  <meta name="description" content="Pixora is the browser-native creative studio with pro-grade tools: layered canvas, CMYK color, RAW import, freehand drawing, lasso, and more." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Reset & Root ─────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --black: #07070d;
+      --surface: #0d0d18;
+      --card: #111120;
+      --border: rgba(255,255,255,0.06);
+      --purple: #8b5cf6;
+      --blue: #3b82f6;
+      --cyan: #06b6d4;
+      --green: #10b981;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --glow-purple: rgba(139,92,246,0.4);
+      --glow-blue: rgba(59,130,246,0.3);
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--black);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--black); }
+    ::-webkit-scrollbar-thumb { background: var(--purple); border-radius: 4px; }
+
+    /* ── NAV ─────────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      padding: 18px 7vw;
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(7,7,13,0.75);
+      backdrop-filter: blur(20px) saturate(180%);
+      border-bottom: 1px solid var(--border);
+      transition: padding 0.3s;
+    }
+    .logo {
+      font-family: 'Sora', sans-serif;
+      font-weight: 800; font-size: 1.4rem; letter-spacing: -0.5px;
+      background: linear-gradient(120deg, var(--purple), var(--blue), var(--cyan));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      text-decoration: none;
+    }
+    .nav-right { display: flex; align-items: center; gap: 28px; }
+    .nav-link { color: var(--muted); font-size: 0.88rem; font-weight: 500; text-decoration: none; transition: color 0.2s; }
+    .nav-link:hover { color: var(--text); }
+    .launch-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      color: #fff; text-decoration: none;
+      padding: 9px 22px; border-radius: 10px;
+      font-size: 0.88rem; font-weight: 700;
+      transition: all 0.3s;
+      box-shadow: 0 4px 20px rgba(139,92,246,0.3);
+    }
+    .launch-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 32px rgba(139,92,246,0.5); }
+
+    /* ── HERO ─────────────────────────────────────────── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      text-align: center;
+      padding: 130px 7vw 80px;
+      position: relative; overflow: hidden;
+    }
+
+    /* Animated noise + gradient background */
+    .hero-canvas {
+      position: absolute; inset: 0; pointer-events: none;
+      background:
+        radial-gradient(ellipse 70% 55% at 50% -10%, rgba(139,92,246,0.22) 0%, transparent 65%),
+        radial-gradient(ellipse 50% 40% at 85% 60%, rgba(59,130,246,0.14) 0%, transparent 65%),
+        radial-gradient(ellipse 40% 30% at 15% 80%, rgba(6,182,212,0.1) 0%, transparent 65%),
+        var(--black);
+    }
+    .hero-dots {
+      position: absolute; inset: 0; pointer-events: none;
+      background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse 85% 65% at 50% 40%, black, transparent);
+    }
+
+    /* Animated glow orbs */
+    .orb {
+      position: absolute; border-radius: 50%; filter: blur(80px); pointer-events: none;
+      animation: float 8s ease-in-out infinite;
+    }
+    .orb-1 { width: 400px; height: 400px; background: rgba(139,92,246,0.15); top: -100px; left: 30%; animation-delay: 0s; }
+    .orb-2 { width: 300px; height: 300px; background: rgba(59,130,246,0.12); top: 200px; right: -80px; animation-delay: 3s; }
+    .orb-3 { width: 250px; height: 250px; background: rgba(6,182,212,0.1); bottom: 100px; left: -60px; animation-delay: 6s; }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) scale(1); }
+      50% { transform: translateY(-30px) scale(1.05); }
+    }
+
+    /* Tiny pill badge */
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      border: 1px solid rgba(139,92,246,0.4);
+      background: rgba(139,92,246,0.08);
+      border-radius: 100px; padding: 5px 14px;
+      font-size: 0.76rem; font-weight: 600; color: #a78bfa;
+      letter-spacing: 0.5px; text-transform: uppercase;
+      margin-bottom: 32px;
+      animation: fadeUp 0.7s ease both;
+    }
+    .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: blink 2s infinite; }
+    @keyframes blink { 0%,100%{opacity:1}50%{opacity:0.4} }
+
+    .hero-title {
+      font-family: 'Sora', sans-serif;
+      font-size: clamp(3rem, 7vw, 5.5rem);
+      font-weight: 800; line-height: 1.02; letter-spacing: -3px;
+      max-width: 860px;
+      animation: fadeUp 0.7s 0.1s ease both;
+    }
+    .hero-title .shade { color: rgba(255,255,255,0.22); }
+    .hero-title .grad {
+      background: linear-gradient(100deg, var(--purple) 0%, var(--blue) 40%, var(--cyan) 80%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hero-sub {
+      margin-top: 22px; font-size: 1.1rem; color: var(--muted); max-width: 520px; line-height: 1.75;
+      animation: fadeUp 0.7s 0.2s ease both;
+    }
+
+    .hero-buttons {
+      display: flex; gap: 12px; margin-top: 40px; justify-content: center; flex-wrap: wrap;
+      animation: fadeUp 0.7s 0.3s ease both;
+    }
+    .btn-hero-primary {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: linear-gradient(135deg, var(--purple) 0%, var(--blue) 100%);
+      color: #fff; text-decoration: none;
+      padding: 15px 34px; border-radius: 14px;
+      font-size: 1rem; font-weight: 700; letter-spacing: -0.2px;
+      transition: all 0.3s;
+      box-shadow: 0 0 0 1px rgba(139,92,246,0.3), 0 8px 32px rgba(139,92,246,0.35);
+      position: relative; overflow: hidden;
+    }
+    .btn-hero-primary::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.12), transparent);
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .btn-hero-primary:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px rgba(139,92,246,0.5), 0 16px 48px rgba(139,92,246,0.5); }
+    .btn-hero-primary:hover::after { opacity: 1; }
+    .btn-hero-ghost {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: rgba(255,255,255,0.04); color: var(--text);
+      border: 1px solid var(--border); text-decoration: none;
+      padding: 15px 32px; border-radius: 14px;
+      font-size: 1rem; font-weight: 600;
+      transition: all 0.3s;
+    }
+    .btn-hero-ghost:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.12); }
+
+    .btn-arrow { font-size: 1.1rem; transition: transform 0.3s; }
+    .btn-hero-primary:hover .btn-arrow { transform: translateX(3px); }
+
+    .trust-strip {
+      display: flex; align-items: center; gap: 24px; margin-top: 52px;
+      justify-content: center; flex-wrap: wrap;
+      animation: fadeUp 0.7s 0.4s ease both;
+    }
+    .trust-divider { width: 1px; height: 28px; background: var(--border); }
+    .trust-item { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--muted); }
+    .trust-item strong { color: var(--text); font-weight: 700; }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    /* ── FEATURE GRID ─────────────────────────────────── */
+    .features {
+      padding: 110px 7vw;
+      background: var(--surface);
+    }
+    .section-eyebrow {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--purple);
+      margin-bottom: 16px;
+    }
+    .section-eyebrow::before, .section-eyebrow::after {
+      content: ''; flex: 1; max-width: 60px; height: 1px; background: rgba(139,92,246,0.3);
+    }
+    .section-h { font-family: 'Sora', sans-serif; font-size: clamp(1.7rem, 3.5vw, 2.6rem); font-weight: 800; letter-spacing: -1.5px; text-align: center; }
+    .section-p { color: var(--muted); text-align: center; font-size: 1rem; margin-top: 10px; max-width: 480px; margin-left: auto; margin-right: auto; }
+
+    .feature-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+      max-width: 1060px; margin: 56px auto 0;
+    }
+    @media(max-width:900px) { .feature-grid { grid-template-columns: repeat(2,1fr); } }
+    @media(max-width:560px) { .feature-grid { grid-template-columns: 1fr; } }
+
+    .f-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 16px;
+      padding: 26px 24px; transition: all 0.3s; position: relative; overflow: hidden; cursor: default;
+    }
+    .f-card:hover { border-color: rgba(139,92,246,0.25); transform: translateY(-3px); }
+    .f-card:hover .f-glow { opacity: 1; }
+    .f-glow {
+      position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(139,92,246,0.5), rgba(59,130,246,0.5), transparent);
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .f-icon {
+      width: 44px; height: 44px; border-radius: 11px;
+      display: flex; align-items: center; justify-content: center; font-size: 1.25rem;
+      margin-bottom: 16px;
+    }
+    .f-card h3 { font-size: 0.96rem; font-weight: 700; margin-bottom: 6px; }
+    .f-card p { font-size: 0.84rem; color: var(--muted); line-height: 1.65; }
+
+    /* ── TOOLS ROW ────────────────────────────────────── */
+    .tools-section { padding: 110px 7vw; background: var(--black); }
+    .tools-inner { max-width: 1060px; margin: 56px auto 0; display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
+    @media(max-width:768px) { .tools-inner { grid-template-columns: 1fr; } }
+
+    .tools-pills { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 28px; }
+    .pill {
+      display: flex; align-items: center; gap: 8px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 100px; padding: 7px 14px;
+      font-size: 0.82rem; font-weight: 600; color: var(--muted);
+      transition: all 0.25s; cursor: default;
+    }
+    .pill:hover { border-color: rgba(139,92,246,0.4); color: var(--text); }
+    .pill-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+    .big-cta-card {
+      background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(59,130,246,0.06));
+      border: 1px solid rgba(139,92,246,0.2);
+      border-radius: 20px; padding: 40px 36px;
+      text-align: center;
+      box-shadow: 0 0 60px rgba(139,92,246,0.08);
+    }
+    .big-cta-card h3 { font-family: 'Sora', sans-serif; font-size: 1.7rem; font-weight: 800; letter-spacing: -1px; margin-bottom: 12px; }
+    .big-cta-card p { color: var(--muted); font-size: 0.92rem; line-height: 1.65; margin-bottom: 28px; }
+
+    /* ── PRICING ──────────────────────────────────────── */
+    .pricing { padding: 110px 7vw; background: var(--surface); }
+    .pricing-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+      max-width: 1000px; margin: 56px auto 0; align-items: start;
+    }
+    @media(max-width:860px) { .pricing-grid { grid-template-columns: 1fr; max-width:380px; } }
+
+    .p-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 20px; padding: 34px 28px; position: relative; overflow: hidden;
+      transition: transform 0.3s;
+    }
+    .p-card:hover { transform: translateY(-4px); }
+    .p-card.featured {
+      border-color: rgba(139,92,246,0.4);
+      background: linear-gradient(145deg, rgba(139,92,246,0.07), var(--card));
+      box-shadow: 0 0 0 1px rgba(139,92,246,0.25), 0 20px 60px rgba(139,92,246,0.1);
+    }
+    .p-card.featured::before {
+      content: 'Most Popular';
+      position: absolute; top: 16px; right: 16px;
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      color: #fff; font-size: 0.68rem; font-weight: 800; padding: 3px 10px;
+      border-radius: 100px; letter-spacing: 0.5px; text-transform: uppercase;
+    }
+    .p-tier { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: var(--purple); margin-bottom: 14px; }
+    .p-price { font-family: 'Sora', sans-serif; font-size: 2.8rem; font-weight: 800; letter-spacing: -2px; line-height: 1; }
+    .p-price sub { font-family: 'Inter', sans-serif; font-size: 0.95rem; font-weight: 500; color: var(--muted); letter-spacing: 0; vertical-align: baseline; }
+    .p-desc { color: var(--muted); font-size: 0.85rem; margin: 10px 0 24px; line-height: 1.6; }
+    .p-feats { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+    .p-feats li { display: flex; align-items: flex-start; gap: 9px; font-size: 0.84rem; }
+    .p-feats .y { color: var(--green); }
+    .p-feats .n { color: var(--border); }
+    .p-btn {
+      display: block; width: 100%; padding: 12px; border-radius: 11px;
+      font-size: 0.92rem; font-weight: 700; text-align: center; text-decoration: none;
+      cursor: pointer; border: none; transition: all 0.3s;
+    }
+    .p-btn-primary {
+      background: linear-gradient(135deg, var(--purple), var(--blue)); color: #fff;
+    }
+    .p-btn-primary:hover { box-shadow: 0 8px 28px rgba(139,92,246,0.45); transform: translateY(-1px); }
+    .p-btn-ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+    .p-btn-ghost:hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.14); }
+
+    /* ── CTA FOOTER STRIP ─────────────────────────────── */
+    .cta-footer {
+      padding: 100px 7vw;
+      background: var(--black);
+      text-align: center;
+      position: relative; overflow: hidden;
+    }
+    .cta-footer::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(139,92,246,0.1), transparent 70%);
+    }
+    .cta-footer h2 { font-family: 'Sora', sans-serif; font-size: clamp(1.8rem, 4vw, 3rem); font-weight: 800; letter-spacing: -1.5px; max-width: 560px; margin: 0 auto 14px; }
+    .cta-footer p { color: var(--muted); font-size: 1rem; max-width: 400px; margin: 0 auto 36px; }
+
+    /* ── FOOTER ───────────────────────────────────────── */
+    footer {
+      padding: 32px 7vw;
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+    }
+    footer .logo { font-size: 1.1rem; }
+    .f-links { display: flex; gap: 20px; }
+    .f-links a { font-size: 0.82rem; color: var(--muted); text-decoration: none; transition: color 0.2s; }
+    .f-links a:hover { color: var(--text); }
+    .f-copy { font-size: 0.78rem; color: var(--muted); }
+
+    /* ── REVEAL ANIMATION ─────────────────────────────── */
+    .rev { opacity: 0; transform: translateY(22px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .rev.in { opacity: 1; transform: none; }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav id="nav">
+    <a href="#" class="logo">Pixora</a>
+    <div class="nav-right">
+      <a href="#features" class="nav-link">Features</a>
+      <a href="#pricing" class="nav-link">Pricing</a>
+      <a href="http://localhost:1420" class="launch-btn" id="nav-launch-btn" target="_blank" rel="noopener">
+        Open Studio <span>↗</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-canvas"></div>
+    <div class="hero-dots"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+
+    <div class="badge"><span class="badge-dot"></span> Now with CMYK Color Profiles</div>
+
+    <h1 class="hero-title">
+      Your canvas.<br />
+      <span class="grad">Uncompromised.</span>
+    </h1>
+    <p class="hero-sub">
+      Pixora is a professional creative studio built for the browser — layers, RAW editing, CMYK color, freehand drawing, and precision shape tools, all in one place.
+    </p>
+
+    <div class="hero-buttons">
+      <a href="http://localhost:1420" id="hero-launch-btn" class="btn-hero-primary" target="_blank" rel="noopener">
+        Launch Pixora Studio
+        <span class="btn-arrow">→</span>
+      </a>
+      <a href="#features" id="hero-features-link" class="btn-hero-ghost">See What's Inside</a>
+    </div>
+
+    <div class="trust-strip">
+      <div class="trust-item"><strong>20+</strong> Pro Tools</div>
+      <div class="trust-divider"></div>
+      <div class="trust-item"><strong>CMYK</strong> Color Profiles</div>
+      <div class="trust-divider"></div>
+      <div class="trust-item"><strong>RAW</strong> File Support</div>
+      <div class="trust-divider"></div>
+      <div class="trust-item"><strong>∞</strong> Layers</div>
+    </div>
+  </section>
+
+  <!-- FEATURES -->
+  <section class="features" id="features">
+    <div class="section-eyebrow rev">Features</div>
+    <h2 class="section-h rev">Built for the Detail-Obsessed</h2>
+    <p class="section-p rev">A full creative toolkit. Every tool built with precision in mind.</p>
+
+    <div class="feature-grid">
+      <div class="f-card rev">
+        <div class="f-glow"></div>
+        <div class="f-icon" style="background:rgba(139,92,246,0.12)">🎨</div>
+        <h3>CMYK & Hex Color</h3>
+        <p>Full CMYK channel control and hex input on every color selector — pen, fill, and stroke.</p>
+      </div>
+      <div class="f-card rev">
+        <div class="f-glow"></div>
+        <div class="f-icon" style="background:rgba(59,130,246,0.12)">✏️</div>
+        <h3>Freehand Pen & Eraser</h3>
+        <p>Smooth freehand drawing. The eraser works in both freehand brush and object-delete modes.</p>
+      </div>
+      <div class="f-card rev">
+        <div class="f-glow"></div>
+        <div class="f-icon" style="background:rgba(6,182,212,0.12)">📐</div>
+        <h3>Precision Shapes</h3>
+        <p>Perfect squares and circles by holding Shift. Live pixel dimensions appear as you drag.</p>
+      </div>
+      <div class="f-card rev">
+        <div class="f-glow"></div>
+        <div class="f-icon" style="background:rgba(16,185,129,0.12)">🔤</div>
+        <h3>Type on Path</h3>
+        <p>Wrap text along any shape or freehand path. Click to convert any drawn line into flowing type.</p>
+      </div>
+      <div class="f-card rev">
+        <div class="f-glow"></div>
+        <div class="f-icon" style="background:rgba(139,92,246,0.12)">🪢</div>
+        <h3>Intelligent Lasso</h3>
+        <p>Three lasso modes — Freehand, Polygon click-points, and Magnetic edge-snapping.</p>
+      </div>
+      <div class="f-card rev">
+        <div class="f-glow"></div>
+        <div class="f-icon" style="background:rgba(59,130,246,0.12)">🗂️</div>
+        <h3>Real-time Layers</h3>
+        <p>A Photoshop-style layers panel. Hide, lock, reorder, rename, and adjust opacity live.</p>
+      </div>
+      <div class="f-card rev">
+        <div class="f-glow"></div>
+        <div class="f-icon" style="background:rgba(6,182,212,0.12)">🖼️</div>
+        <h3>RAW Photo Editing</h3>
+        <p>Import and edit RAW files directly on the canvas with non-destructive adjustments.</p>
+      </div>
+      <div class="f-card rev">
+        <div class="f-glow"></div>
+        <div class="f-icon" style="background:rgba(16,185,129,0.12)">🕒</div>
+        <h3>Canvas History</h3>
+        <p>Multi-step undo and redo. Every single stroke, move, and transform is tracked.</p>
+      </div>
+      <div class="f-card rev">
+        <div class="f-glow"></div>
+        <div class="f-icon" style="background:rgba(139,92,246,0.12)">💧</div>
+        <h3>Eyedropper Sampling</h3>
+        <p>Pick any color from anywhere on your canvas and apply it to the active tool instantly.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- TOOLS SECTION -->
+  <section class="tools-section" id="tools">
+    <div class="section-eyebrow rev">Pro Toolkit</div>
+    <h2 class="section-h rev">Every Tool Has Its Own Intelligence</h2>
+    <p class="section-p rev">Context-aware settings panels slide in automatically next to the toolbar — no hunting for options.</p>
+
+    <div class="tools-inner">
+      <div>
+        <div class="tools-pills">
+          <div class="pill rev"><span class="pill-dot" style="background:#8b5cf6"></span>Move & Select</div>
+          <div class="pill rev"><span class="pill-dot" style="background:#3b82f6"></span>Direct Select</div>
+          <div class="pill rev"><span class="pill-dot" style="background:#06b6d4"></span>Pen / Pencil</div>
+          <div class="pill rev"><span class="pill-dot" style="background:#10b981"></span>Eraser (2 modes)</div>
+          <div class="pill rev"><span class="pill-dot" style="background:#f59e0b"></span>Lasso (3 modes)</div>
+          <div class="pill rev"><span class="pill-dot" style="background:#ef4444"></span>Rectangle</div>
+          <div class="pill rev"><span class="pill-dot" style="background:#8b5cf6"></span>Ellipse</div>
+          <div class="pill rev"><span class="pill-dot" style="background:#3b82f6"></span>Type on Path</div>
+          <div class="pill rev"><span class="pill-dot" style="background:#06b6d4"></span>Eyedropper</div>
+          <div class="pill rev"><span class="pill-dot" style="background:#10b981"></span>Hand / Pan</div>
+        </div>
+      </div>
+
+      <div class="big-cta-card rev">
+        <div style="font-size:3rem;margin-bottom:16px">🚀</div>
+        <h3>Ready to create?</h3>
+        <p>Pixora Studio runs entirely in your browser. No install. No waiting. Just open and start building.</p>
+        <a href="http://localhost:1420" id="card-launch-btn" class="btn-hero-primary" style="display:inline-flex;margin:0 auto;" target="_blank" rel="noopener">
+          Open Pixora Studio <span class="btn-arrow">→</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section class="pricing" id="pricing">
+    <div class="section-eyebrow rev">Pricing</div>
+    <h2 class="section-h rev">Pick Your Plan</h2>
+    <p class="section-p rev">No lock-ins. Cancel anytime. Start free.</p>
+
+    <div class="pricing-grid">
+      <!-- FREE -->
+      <div class="p-card rev">
+        <div class="p-tier">Free</div>
+        <div class="p-price">$0 <sub>/ month</sub></div>
+        <p class="p-desc">For personal projects and exploring the editor.</p>
+        <ul class="p-feats">
+          <li><span class="y">✓</span> 3 canvas projects</li>
+          <li><span class="y">✓</span> Core drawing tools</li>
+          <li><span class="y">✓</span> Hex color picker</li>
+          <li><span class="y">✓</span> PNG export</li>
+          <li><span class="n">✗</span> CMYK profiles</li>
+          <li><span class="n">✗</span> RAW import</li>
+          <li><span class="n">✗</span> Unlimited layers</li>
+        </ul>
+        <a href="http://localhost:1420" id="free-btn" class="p-btn p-btn-ghost" target="_blank">Start Free →</a>
+      </div>
+
+      <!-- PRO -->
+      <div class="p-card featured rev">
+        <div class="p-tier">Pro</div>
+        <div class="p-price">$12 <sub>/ month</sub></div>
+        <p class="p-desc">For designers and photographers who need it all.</p>
+        <ul class="p-feats">
+          <li><span class="y">✓</span> Unlimited projects</li>
+          <li><span class="y">✓</span> All pro tools</li>
+          <li><span class="y">✓</span> CMYK + Hex color</li>
+          <li><span class="y">✓</span> RAW file import</li>
+          <li><span class="y">✓</span> Unlimited layers</li>
+          <li><span class="y">✓</span> Type on Path</li>
+          <li><span class="y">✓</span> Canvas history (50 steps)</li>
+        </ul>
+        <a href="http://localhost:1420" id="pro-btn" class="p-btn p-btn-primary" target="_blank">Start 14-Day Trial →</a>
+      </div>
+
+      <!-- TEAM -->
+      <div class="p-card rev">
+        <div class="p-tier">Team</div>
+        <div class="p-price">$29 <sub>/ month</sub></div>
+        <p class="p-desc">For studios and teams collaborating at scale.</p>
+        <ul class="p-feats">
+          <li><span class="y">✓</span> Everything in Pro</li>
+          <li><span class="y">✓</span> Up to 10 seats</li>
+          <li><span class="y">✓</span> Shared asset library</li>
+          <li><span class="y">✓</span> Priority support</li>
+          <li><span class="y">✓</span> Unlimited history</li>
+          <li><span class="y">✓</span> Custom export branding</li>
+          <li><span class="y">✓</span> Real-time collaboration</li>
+        </ul>
+        <a href="#" id="team-btn" class="p-btn p-btn-ghost">Contact Sales →</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="cta-footer rev">
+    <h2>Start creating today.</h2>
+    <p>Your studio is one click away. No install. No signup required.</p>
+    <a href="http://localhost:1420" id="final-cta-btn" class="btn-hero-primary" style="display:inline-flex;" target="_blank" rel="noopener">
+      Open Pixora Studio <span class="btn-arrow">→</span>
+    </a>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <a href="#" class="logo">Pixora</a>
+    <div class="f-links">
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="http://localhost:1420" id="footer-app-link" target="_blank">Open App ↗</a>
+    </div>
+    <div class="f-copy">© 2026 Pixora. All rights reserved.</div>
+  </footer>
+
+  <script>
+    // Scroll reveal
+    const io = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      });
+    }, { threshold: 0.1, rootMargin: '0px 0px -30px 0px' });
+    document.querySelectorAll('.rev').forEach((el, i) => {
+      el.style.transitionDelay = `${(i % 4) * 55}ms`;
+      io.observe(el);
+    });
+
+    // Navbar scroll shrink
+    const nav = document.getElementById('nav');
+    window.addEventListener('scroll', () => {
+      nav.style.padding = window.scrollY > 30 ? '11px 7vw' : '18px 7vw';
+    }, { passive: true });
+  </script>
+</body>
+</html>

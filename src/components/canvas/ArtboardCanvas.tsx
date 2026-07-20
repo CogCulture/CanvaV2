@@ -264,6 +264,7 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
 
     fabricRef.current = canvas;
     globalFabricCanvas = canvas;
+    useCanvasStore.getState().setFabricCanvas(canvas);
     (window as any).__fabricCanvas = canvas;
     if (onCanvasReady) onCanvasReady(canvas);
 
@@ -566,6 +567,7 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
       canvas.dispose();
       fabricRef.current = null;
       globalFabricCanvas = null;
+      useCanvasStore.getState().setFabricCanvas(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -663,9 +665,9 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
 
     canvas.getObjects().forEach((o) => {
       if ((o as any)[ARTBOARD_RECT_MARKER]) {
-        // Artboard rects are always movable — they don't participate in tool modes
-        (o as any).selectable = true;
-        (o as any).evented = true;
+        // Artboard rects are only draggable when in the 'move' tool
+        (o as any).selectable = isMove;
+        (o as any).evented = true; // Always evented for tool click detection
         return;
       }
       o.selectable = isMove;
@@ -1005,7 +1007,7 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
 
 /** Utility: add a remote image URL to the canvas, centred in the active artboard */
 export async function addImageToCanvas(url: string, name: string = 'Image', sourcePath?: string) {
-  const canvas = globalFabricCanvas;
+  const canvas = useCanvasStore.getState().fabricCanvas || globalFabricCanvas;
   if (!canvas) return;
   const { artboards, activeArtboardId } = useCanvasStore.getState();
   const activeBoard = artboards.find(b => b.id === activeArtboardId) ?? artboards[0];
@@ -1034,7 +1036,7 @@ export async function addImageToCanvas(url: string, name: string = 'Image', sour
 
 /** Utility: add a text box to the canvas, centred in the active artboard */
 export function addTextToCanvas() {
-  const canvas = globalFabricCanvas;
+  const canvas = useCanvasStore.getState().fabricCanvas || globalFabricCanvas;
   if (!canvas) return;
   const { artboards, activeArtboardId } = useCanvasStore.getState();
   const activeBoard = artboards.find(b => b.id === activeArtboardId) ?? artboards[0];

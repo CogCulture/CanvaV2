@@ -157,6 +157,11 @@ export interface CanvasState {
   setEraserMode: (mode: 'freehand' | 'object') => void;
   eraserSize: number;
   setEraserSize: (size: number) => void;
+  
+  // Fabric Instance (to avoid HMR issues with module globals)
+  fabricCanvas: fabric.Canvas | null;
+  setFabricCanvas: (canvas: fabric.Canvas | null) => void;
+  
   lassoMode: 'magnetic' | 'polygon' | 'freehand';
   setLassoMode: (mode: 'magnetic' | 'polygon' | 'freehand') => void;
   openSetupModal: (imagePath: string, imageDataUrl?: string) => void;
@@ -303,6 +308,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   setEraserMode: (mode) => set({ eraserMode: mode }),
   eraserSize: 20,
   setEraserSize: (size) => set({ eraserSize: size }),
+  
+  fabricCanvas: null,
+  setFabricCanvas: (canvas) => set({ fabricCanvas: canvas }),
+
   lassoMode: 'freehand',
   setLassoMode: (mode) => set({ lassoMode: mode }),
   openSetupModal: (imagePath, imageDataUrl) =>
