@@ -135,6 +135,14 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
   const canvasElRef = useRef<HTMLCanvasElement>(null);
   const fabricRef = useRef<fabric.Canvas | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Tracks objects captured at artboard drag-start so they move with the artboard
+  const artboardMoveRef = useRef<{
+    boardId: string;
+    lastX: number;
+    lastY: number;
+    ownedObjects: fabric.Object[];
+  } | null>(null);
   const spaceHeld = useRef(false);
   const isPanning = useRef(false);
   const lastPan = useRef<{ x: number; y: number } | null>(null);
@@ -198,7 +206,6 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
     boards.forEach((board) => {
       const isActive = board.id === activeId;
 
-      // Shadow rect behind the white artboard for depth
       const boardRect = new fabric.Rect({
         left: board.x,
         top: board.y,
@@ -207,9 +214,16 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
         fill: '#ffffff',
         stroke: isActive ? '#6366f1' : 'rgba(255,255,255,0.15)',
         strokeWidth: isActive ? 2 : 1,
-        selectable: false,
-        evented: true,  // needed for click detection
-        hoverCursor: 'default',
+        // Movable but no resize / rotate handles
+        selectable: true,
+        evented: true,
+        hasControls: false,
+        hasBorders: true,
+        lockScalingX: true,
+        lockScalingY: true,
+        lockRotation: true,
+        hoverCursor: 'move',
+        moveCursor: 'move',
         shadow: new fabric.Shadow({ color: 'rgba(0,0,0,0.4)', blur: 24, offsetX: 0, offsetY: 8 }),
       } as any);
       (boardRect as any)[ARTBOARD_RECT_MARKER] = true;
@@ -436,15 +450,68 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
     };
     window.addEventListener('keydown', handleEnter);
 
-    // ── Artboard click detection ───────────────────────────────────────
+    // ── Artboard click & drag ──────────────────────────────────────────
     canvas.on('mouse:down', (opt: any) => {
-      // If we clicked an artboard rect background (not a real object), activate that artboard
       if (opt.target && (opt.target as any)[ARTBOARD_RECT_MARKER]) {
         const boardId = (opt.target as any).__artboardId;
         if (boardId) {
           useCanvasStore.getState().setActiveArtboard(boardId);
+
+          // Capture which objects currently sit inside this artboard
+          const board = useCanvasStore.getState().artboards.find(b => b.id === boardId);
+          if (board) {
+            const owned = canvas.getObjects().filter((o: any) => {
+              if (o[ARTBOARD_RECT_MARKER] || !o._canvasLayerId) return false;
+              const cx = (o.left ?? 0) + ((o.width ?? 0) * (o.scaleX ?? 1)) / 2;
+              const cy = (o.top ?? 0) + ((o.height ?? 0) * (o.scaleY ?? 1)) / 2;
+              return cx >= board.x && cx <= board.x + board.width && cy >= board.y && cy <= board.y + board.height;
+            });
+            artboardMoveRef.current = {
+              boardId,
+              lastX: opt.target.left as number,
+              lastY: opt.target.top as number,
+              ownedObjects: owned,
+            };
+          }
         }
+      } else {
+        // Clicked elsewhere — cancel any pending artboard move state
+        artboardMoveRef.current = null;
       }
+    });
+
+    // ── Artboard drag: move owned objects with the artboard ───────────
+    canvas.on('object:moving', (opt: any) => {
+      const obj = opt.target as any;
+      if (!obj || !obj[ARTBOARD_RECT_MARKER]) return;
+      const state = artboardMoveRef.current;
+      if (!state || state.boardId !== obj.__artboardId) return;
+
+      const dx = obj.left - state.lastX;
+      const dy = obj.top - state.lastY;
+      state.lastX = obj.left;
+      state.lastY = obj.top;
+
+      state.ownedObjects.forEach(o => {
+        o.set({ left: (o.left ?? 0) + dx, top: (o.top ?? 0) + dy });
+        o.setCoords();
+      });
+      canvas.requestRenderAll();
+    });
+
+    // ── Artboard dropped: persist new position in store ───────────────
+    canvas.on('object:modified', (opt: any) => {
+      const obj = opt.target as any;
+      if (obj && obj[ARTBOARD_RECT_MARKER]) {
+        const boardId = obj.__artboardId;
+        useCanvasStore.getState().updateArtboard(boardId, { x: obj.left, y: obj.top });
+        artboardMoveRef.current = null;
+        // Re-draw rects to restore correct stroke/shadow (modifying clears them)
+        const { artboards: boards, activeArtboardId } = useCanvasStore.getState();
+        drawArtboardRects(canvas, boards, activeArtboardId);
+      }
+      syncLayers(canvas);
+      markCanvasDirty();
     });
 
     // ── Selection sync ────────────────────────────────────────────────
@@ -480,7 +547,6 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
       markCanvasDirty();
     });
 
-    canvas.on('object:modified', () => { syncLayers(canvas); markCanvasDirty(); });
     canvas.on('object:added', () => { syncLayers(canvas); markCanvasDirty(); });
     canvas.on('object:removed', () => { syncLayers(canvas); markCanvasDirty(); });
 
@@ -589,10 +655,19 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
     const isMove = activeTool === 'move';
     canvas.selection = isMove;
     canvas.defaultCursor = 'default';
-    if (!isMove) canvas.discardActiveObject();
+    if (!isMove) {
+      // Only discard if the active object is not an artboard rect (artboards can always be dragged)
+      const current = canvas.getActiveObject() as any;
+      if (current && !current[ARTBOARD_RECT_MARKER]) canvas.discardActiveObject();
+    }
 
     canvas.getObjects().forEach((o) => {
-      if ((o as any)[ARTBOARD_RECT_MARKER]) return; // keep artboard rects evented for click detection
+      if ((o as any)[ARTBOARD_RECT_MARKER]) {
+        // Artboard rects are always movable — they don't participate in tool modes
+        (o as any).selectable = true;
+        (o as any).evented = true;
+        return;
+      }
       o.selectable = isMove;
       o.evented = isMove || activeTool === 'eraser' || activeTool === 'type_path';
     });
