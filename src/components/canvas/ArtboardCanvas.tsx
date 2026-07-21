@@ -778,11 +778,11 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
         if (ctx) {
           try {
             const data = ctx.getImageData(x, y, 1, 1).data;
-            const color = `rgba(${data[0]}, ${data[1]}, ${data[2]}, ${data[3] / 255})`;
+            const hexColor = `#${((1 << 24) + (data[0] << 16) + (data[1] << 8) + data[2]).toString(16).slice(1).toUpperCase()}`;
             const activeObj = canvas.getActiveObject();
-            if (activeObj) { activeObj.set('fill', color); canvas.requestRenderAll(); syncLayers(canvas); }
-            setPenColor(color);
-            addSavedColor(color);
+            if (activeObj) { activeObj.set('fill', hexColor); canvas.requestRenderAll(); syncLayers(canvas); }
+            setPenColor(hexColor);
+            addSavedColor(hexColor);
           } catch (err) { console.error('Canvas is tainted, cannot sample color:', err); }
         }
       } else if (activeTool === 'lasso') {
