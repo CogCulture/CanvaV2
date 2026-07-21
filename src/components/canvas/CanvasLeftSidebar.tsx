@@ -26,6 +26,7 @@ const TOOLS = [
   { id: 'type_path', icon: Spline, label: 'Type on Path Tool (Y)' },
   { id: 'lasso', icon: Lasso, label: 'Lasso Selection Tool (S)' },
   { id: 'eraser', icon: Eraser, label: 'Eraser Tool (E)' },
+  { id: 'eyedropper', icon: Pipette, label: 'Eyedropper Tool (I)' },
   { id: 'zoom', icon: Search, label: 'Zoom Tool (Z)' },
 ];
 
@@ -35,7 +36,7 @@ export default function CanvasLeftSidebar() {
     penColor, penSize, setPenColor, setPenSize,
     lassoMode, setLassoMode,
     eraserMode, setEraserMode, eraserSize, setEraserSize,
-    showRulers, setShowRulers
+    showRulers, setShowRulers, addSavedColor
   } = useCanvasStore();
 
   return (
@@ -57,6 +58,7 @@ export default function CanvasLeftSidebar() {
                 const eyeDropper = new (window as any).EyeDropper();
                 eyeDropper.open().then((result: any) => {
                   setPenColor(result.sRGBHex);
+                  addSavedColor(result.sRGBHex);
                   setActiveTool('pen');
                 }).catch((e: any) => console.error(e));
                 return;

@@ -163,7 +163,7 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
     activeLayerIds, addLayer, removeLayer, setActiveLayer, setActiveLayers,
     updateLayer, setLayers, layers, initialImageDataUrl, activeTool, setActiveTool,
     penColor, penSize, setPenColor, lassoMode, eraserMode, eraserSize, markCanvasDirty,
-    artboards, activeArtboardId, setActiveArtboard, addArtboard,
+    artboards, activeArtboardId, setActiveArtboard, addArtboard, addSavedColor
   } = useCanvasStore();
 
   // ── syncLayers: rebuild layer list from fabric objects ────────────────
@@ -772,6 +772,7 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
             const activeObj = canvas.getActiveObject();
             if (activeObj) { activeObj.set('fill', color); canvas.requestRenderAll(); syncLayers(canvas); }
             setPenColor(color);
+            addSavedColor(color);
             setActiveTool('pen');
           } catch (err) { console.error('Canvas is tainted, cannot sample color:', err); }
         }
