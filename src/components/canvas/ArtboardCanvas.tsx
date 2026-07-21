@@ -223,7 +223,7 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
         stroke: isActive ? '#6366f1' : 'rgba(255,255,255,0.15)',
         strokeWidth: isActive ? 2 : 1,
         // Movable but no resize / rotate handles
-        selectable: false,
+        selectable: useCanvasStore.getState().activeTool === 'artboard',
         evented: true,
         hasControls: false,
         hasBorders: true,
@@ -681,8 +681,8 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
 
     canvas.getObjects().forEach((o) => {
       if ((o as any)[ARTBOARD_RECT_MARKER]) {
-        // Artboard rects are only draggable when in the 'move' tool
-        (o as any).selectable = isMove;
+        // Artboard rects are only draggable when in the 'artboard' tool
+        (o as any).selectable = activeTool === 'artboard';
         (o as any).evented = true; // Always evented for tool click detection
         return;
       }
