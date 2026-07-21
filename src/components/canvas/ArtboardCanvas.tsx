@@ -131,6 +131,8 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
   const canvasElRef = useRef<HTMLCanvasElement>(null);
   const fabricRef = useRef<fabric.Canvas | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const magnifierDivRef = useRef<HTMLDivElement>(null);
+  const magnifierCanvasRef = useRef<HTMLCanvasElement>(null);
 
   // Tracks objects captured at artboard drag-start so they move with the artboard
   const artboardMoveRef = useRef<{
@@ -148,6 +150,12 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
   const startPos = useRef({ x: 0, y: 0 });
   const currentShape = useRef<any>(null);
   const dimensionLabel = useRef<fabric.Text | null>(null);
+
+  useEffect(() => {
+    if (activeTool !== 'eyedropper' && magnifierDivRef.current) {
+      magnifierDivRef.current.style.display = 'none';
+    }
+  }, [activeTool]);
 
   // Eraser freehand state
   const isEraserDrawing = useRef(false);
@@ -792,6 +800,53 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
     };
 
     const onMouseMove = (o: any) => {
+      if (activeTool === 'eyedropper') {
+        const e = o.e as MouseEvent;
+        const el = canvas.getElement() as HTMLCanvasElement;
+        const rect = el.getBoundingClientRect();
+        const x = (e.clientX - rect.left) * (el.width / rect.width);
+        const y = (e.clientY - rect.top) * (el.height / rect.height);
+        
+        if (magnifierDivRef.current && magnifierCanvasRef.current) {
+          magnifierDivRef.current.style.display = 'flex';
+          magnifierDivRef.current.style.left = `${e.clientX}px`;
+          magnifierDivRef.current.style.top = `${e.clientY}px`;
+          
+          const ctx = el.getContext('2d');
+          if (ctx) {
+            try {
+              const data = ctx.getImageData(x, y, 1, 1).data;
+              const hex = `#${((1 << 24) + (data[0] << 16) + (data[1] << 8) + data[2]).toString(16).slice(1).toUpperCase()}`;
+              
+              const mCtx = magnifierCanvasRef.current.getContext('2d');
+              if (mCtx) {
+                mCtx.imageSmoothingEnabled = false;
+                mCtx.clearRect(0, 0, 110, 110);
+                mCtx.drawImage(el, Math.round(x) - 5, Math.round(y) - 5, 11, 11, 0, 0, 110, 110);
+                
+                mCtx.strokeStyle = 'white';
+                mCtx.lineWidth = 1;
+                mCtx.strokeRect(50, 50, 10, 10);
+                mCtx.strokeStyle = 'black';
+                mCtx.strokeRect(49, 49, 12, 12);
+              }
+              
+              const hexLabel = document.getElementById('magnifier-hex-label');
+              if (hexLabel) {
+                hexLabel.textContent = hex;
+                hexLabel.style.backgroundColor = `rgba(${data[0]}, ${data[1]}, ${data[2]}, 1)`;
+                const lum = 0.299 * data[0] + 0.587 * data[1] + 0.114 * data[2];
+                hexLabel.style.color = lum > 128 ? 'black' : 'white';
+              }
+            } catch (err) {}
+          }
+        }
+        return;
+      } else {
+        if (magnifierDivRef.current) magnifierDivRef.current.style.display = 'none';
+      }
+
+
       if (activeTool === 'eraser' && eraserMode === 'freehand') {
         const pointer = o.scenePoint || o.pointer;
         if (pointer) {
@@ -946,14 +1001,20 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
       canvas.getObjects().forEach((o) => { if (!(o as any)[ARTBOARD_RECT_MARKER]) o.evented = false; });
     }
 
+    const onMouseOut = () => {
+      if (magnifierDivRef.current) magnifierDivRef.current.style.display = 'none';
+    };
+
     canvas.on('mouse:down', onMouseDown);
     canvas.on('mouse:move', onMouseMove);
     canvas.on('mouse:up', onMouseUp);
+    canvas.on('mouse:out', onMouseOut);
 
     return () => {
       canvas.off('mouse:down', onMouseDown);
       canvas.off('mouse:move', onMouseMove);
       canvas.off('mouse:up', onMouseUp);
+      canvas.off('mouse:out', onMouseOut);
       if (activeTool !== 'lasso' && activeTool !== 'type_path') {
         lassoPoints.current = [];
         lastMousePos.current = null;
@@ -1025,6 +1086,18 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
   return (
     <div ref={containerRef} className="relative w-full h-full overflow-hidden" style={{ background: '#1c1c1e' }}>
       <canvas ref={canvasElRef} />
+      
+      {/* Eyedropper custom magnifier overlay */}
+      <div 
+        ref={magnifierDivRef}
+        className="fixed z-50 flex-col items-center pointer-events-none drop-shadow-2xl"
+        style={{ display: 'none', transform: 'translate(-50%, -100%)', marginTop: '-15px' }}
+      >
+        <div className="w-[110px] h-[110px] rounded-full overflow-hidden border-[4px] border-white/20 shadow-[0_0_0_1px_rgba(0,0,0,0.5)]">
+          <canvas ref={magnifierCanvasRef} width={110} height={110} className="w-full h-full" />
+        </div>
+        <div id="magnifier-hex-label" className="mt-2 px-2 py-0.5 rounded shadow-lg text-[10px] font-mono border border-white/10 uppercase tracking-widest text-center" />
+      </div>
     </div>
   );
 }
