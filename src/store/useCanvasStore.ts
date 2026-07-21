@@ -152,6 +152,8 @@ export interface CanvasState {
   penColor: string;
   penSize: number;
   setPenColor: (color: string) => void;
+  savedColors: string[];
+  addSavedColor: (color: string) => void;
   setPenSize: (size: number) => void;
   eraserMode: 'freehand' | 'object';
   setEraserMode: (mode: 'freehand' | 'object') => void;
@@ -299,10 +301,18 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   activeTool: 'move',
   penColor: '#3B82F6',
   penSize: 10,
+  savedColors: ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#6366F1', '#EC4899', '#000000', '#FFFFFF'],
   imageEditLayerId: null,
   imageEditDataUrl: null,
   setActiveTool: (tool) => set({ activeTool: tool }),
   setPenColor: (color) => set({ penColor: color }),
+  addSavedColor: (color) => set((state) => {
+    // Avoid duplicates and limit to 16 colors
+    const upperColor = color.toUpperCase();
+    const newColors = state.savedColors.filter(c => c !== upperColor);
+    newColors.unshift(upperColor);
+    return { savedColors: newColors.slice(0, 16) };
+  }),
   setPenSize: (size) => set({ penSize: size }),
   eraserMode: 'freehand',
   setEraserMode: (mode) => set({ eraserMode: mode }),

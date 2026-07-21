@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { Pipette } from 'lucide-react';
 import { hexToCmyk, cmykToHex } from '../../utils/colorUtils';
+import { useCanvasStore } from '../../store/useCanvasStore';
 
 interface ColorInputProps {
   value: string;
@@ -7,6 +9,7 @@ interface ColorInputProps {
 }
 
 export function ColorInput({ value, onChange }: ColorInputProps) {
+  const { savedColors, addSavedColor } = useCanvasStore();
   const [hex, setHex] = useState(value);
   const [cmyk, setCmyk] = useState(hexToCmyk(value));
 
@@ -38,6 +41,7 @@ export function ColorInput({ value, onChange }: ColorInputProps) {
       const upper = hex.toUpperCase();
       setHex(upper);
       onChange(upper);
+      addSavedColor(upper);
     }
   };
 
@@ -53,6 +57,7 @@ export function ColorInput({ value, onChange }: ColorInputProps) {
     const newHex = cmykToHex(newCmyk.c, newCmyk.m, newCmyk.y, newCmyk.k);
     setHex(newHex);
     onChange(newHex);
+    addSavedColor(newHex);
   };
 
   return (
@@ -67,9 +72,30 @@ export function ColorInput({ value, onChange }: ColorInputProps) {
             setHex(newHex);
             setCmyk(hexToCmyk(newHex));
             onChange(newHex);
+            addSavedColor(newHex);
           }}
           className="w-7 h-7 shrink-0 rounded cursor-pointer bg-transparent border border-white/10 p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded"
         />
+        
+        {'EyeDropper' in window && (
+          <button
+            onClick={() => {
+              const eyeDropper = new (window as any).EyeDropper();
+              eyeDropper.open().then((result: any) => {
+                const newHex = result.sRGBHex.toUpperCase();
+                setHex(newHex);
+                setCmyk(hexToCmyk(newHex));
+                onChange(newHex);
+                addSavedColor(newHex);
+              }).catch((e: any) => console.error(e));
+            }}
+            title="Pick color from screen"
+            className="w-7 h-7 shrink-0 rounded flex items-center justify-center bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20 transition-colors text-white/70 hover:text-white"
+          >
+            <Pipette size={14} />
+          </button>
+        )}
+
         <div className="flex-1 flex items-center bg-white/6 border border-white/10 rounded h-7 transition-colors focus-within:border-blue-500/70 overflow-hidden">
           <input
             type="text"
@@ -100,6 +126,23 @@ export function ColorInput({ value, onChange }: ColorInputProps) {
               className="w-full bg-transparent text-center text-[10px] text-white py-1 outline-none font-mono"
             />
           </div>
+        ))}
+      </div>
+
+      {/* Saved Colors Palette */}
+      <div className="flex flex-wrap gap-1.5 mt-1">
+        {savedColors.map((color, i) => (
+          <button
+            key={`${color}-${i}`}
+            onClick={() => {
+              setHex(color);
+              setCmyk(hexToCmyk(color));
+              onChange(color);
+            }}
+            className="w-[18px] h-[18px] rounded cursor-pointer border border-white/10 hover:border-white/50 transition-colors"
+            style={{ backgroundColor: color }}
+            title={color}
+          />
         ))}
       </div>
     </div>
