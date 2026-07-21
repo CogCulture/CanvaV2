@@ -45,25 +45,50 @@ const BLEND_MODES = [
   { value: 'exclusion', label: 'Exclusion' },
 ];
 
-const Field = ({
-  label, value, onChange, min, max, step = 1,
-}: {
-  label: string; value: number; onChange: (v: number) => void;
-  min?: number; max?: number; step?: number;
-}) => (
-  <div className="flex items-center gap-2">
-    <span className="text-[9px] text-white/35 w-5 shrink-0 font-mono">{label}</span>
-    <input
-      type="number"
-      value={value}
-      min={min}
-      max={max}
-      step={step}
-      onChange={(e) => onChange(Number(e.target.value))}
-      className="flex-1 min-w-0 w-full bg-white/6 border border-white/10 rounded-md px-2 py-1 text-[11px] text-white outline-none focus:border-blue-500/70 transition-colors text-center"
-    />
-  </div>
-);
+function Field({ label, value, onChange, min, max, step = 1 }: any) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-[9px] text-white/35 w-5 shrink-0 font-mono">{label}</span>
+      <input
+        type="number"
+        value={typeof value === 'number' ? Math.round(value) : value || 0}
+        min={min}
+        max={max}
+        step={step}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className="flex-1 min-w-0 w-full bg-white/6 border border-white/10 rounded-md px-2 py-1 text-[11px] text-white outline-none focus:border-blue-500/70 transition-colors text-center"
+      />
+    </div>
+  );
+}
+
+function SavedColorsPalette({ applyProp, isSelected }: { applyProp?: (key: string, val: string) => void, isSelected: boolean }) {
+  const { savedColors, setPenColor } = useCanvasStore();
+  
+  return (
+    <div className="space-y-2 pt-3 border-t border-white/6">
+      <div className="flex items-center gap-1.5 text-[9px] text-white/30 uppercase tracking-widest font-semibold">
+        <Blend size={9} /> Saved Colors
+      </div>
+      <div className="flex flex-wrap gap-1.5 mt-1 px-1">
+        {savedColors.map((color, i) => (
+          <button
+            key={`${color}-${i}`}
+            onClick={() => {
+              setPenColor(color);
+              if (isSelected && applyProp) {
+                applyProp('fill', color);
+              }
+            }}
+            className="w-[22px] h-[22px] rounded cursor-pointer border border-white/10 hover:border-white/50 transition-colors"
+            style={{ backgroundColor: color }}
+            title={color}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelProps) {
   const { activeLayerId, updateLayer, clearGuides, guides, activeGuideId, setGuides, setActiveGuideId, rulerUnit, setRulerUnit } = useCanvasStore();
@@ -255,6 +280,7 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
             </button>
           </div>
         )}
+        <SavedColorsPalette isSelected={false} />
       </div>
     );
   }
@@ -490,6 +516,8 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
           </button>
         </div>
       )}
+
+      <SavedColorsPalette applyProp={applyProp} isSelected={true} />
     </div>
   );
 }

@@ -59,7 +59,6 @@ export default function CanvasLeftSidebar() {
                 eyeDropper.open().then((result: any) => {
                   setPenColor(result.sRGBHex);
                   addSavedColor(result.sRGBHex);
-                  setActiveTool('pen');
                 }).catch((e: any) => console.error(e));
                 return;
               }

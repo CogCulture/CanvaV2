@@ -773,7 +773,6 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
             if (activeObj) { activeObj.set('fill', color); canvas.requestRenderAll(); syncLayers(canvas); }
             setPenColor(color);
             addSavedColor(color);
-            setActiveTool('pen');
           } catch (err) { console.error('Canvas is tainted, cannot sample color:', err); }
         }
       } else if (activeTool === 'lasso') {
