@@ -73,7 +73,7 @@ function CanvasScrollbars({ fabricCanvas }: { fabricCanvas: fabric.Canvas | null
   const [canvasSize, setCanvasSize] = useState({ w: 1, h: 1 });
   const isDraggingH = useRef(false);
   const isDraggingV = useRef(false);
-  const dragStart = useRef({ mouseX: 0, mouseY: 0, vptX: 0, vptY: 0 });
+  const dragStart = useRef({ mouseX: 0, mouseY: 0, vptX: 0, vptY: 0, thumbRatio: 0, worldRange: 0 });
 
   useEffect(() => {
     if (!fabricCanvas) return;
@@ -93,25 +93,22 @@ function CanvasScrollbars({ fabricCanvas }: { fabricCanvas: fabric.Canvas | null
       const v = [...(fabricCanvas.viewportTransform ?? [1, 0, 0, 1, 0, 0])];
 
       if (isDraggingH.current) {
-        const { worldMin, worldMax, thumbRatio } = computeH();
-        const worldRange = worldMax - worldMin;
+        const { thumbRatio, worldRange, mouseX, vptX } = dragStart.current;
         const trackW = canvasSize.w - SCROLLBAR_SIZE;
-        const dx = e.clientX - dragStart.current.mouseX;
-        // how much world-space to scroll per pixel of thumb travel
-        const dWorld = (dx / (trackW * (1 - thumbRatio))) * worldRange;
-        // dragStart.vptX is the viewport offset at drag start; shift it by -dWorld * zoom
-        v[4] = dragStart.current.vptX - dWorld * v[0];
+        const dx = e.clientX - mouseX;
+        const availableTrack = Math.max(1, trackW * (1 - thumbRatio));
+        const dWorld = (dx / availableTrack) * worldRange;
+        v[4] = vptX - dWorld * v[0];
         (fabricCanvas as any).viewportTransform = v;
         fabricCanvas.requestRenderAll();
       }
       if (isDraggingV.current) {
-        const { worldMin, worldMax, thumbRatio } = computeV();
-        const worldRange = worldMax - worldMin;
+        const { thumbRatio, worldRange, mouseY, vptY } = dragStart.current;
         const trackH = canvasSize.h - SCROLLBAR_SIZE;
-        const dy = e.clientY - dragStart.current.mouseY;
-        const dWorld = (dy / (trackH * (1 - thumbRatio))) * worldRange;
-        const newVptY = dragStart.current.vptY - dWorld * v[3];
-        v[5] = newVptY;
+        const dy = e.clientY - mouseY;
+        const availableTrack = Math.max(1, trackH * (1 - thumbRatio));
+        const dWorld = (dy / availableTrack) * worldRange;
+        v[5] = vptY - dWorld * v[3];
         (fabricCanvas as any).viewportTransform = v;
         fabricCanvas.requestRenderAll();
       }
@@ -193,11 +190,14 @@ function CanvasScrollbars({ fabricCanvas }: { fabricCanvas: fabric.Canvas | null
             onMouseDown={(e) => {
               e.preventDefault();
               isDraggingH.current = true;
+              const hState = computeH();
               dragStart.current = {
                 mouseX: e.clientX,
                 mouseY: e.clientY,
                 vptX: fabricCanvas?.viewportTransform?.[4] ?? 0,
                 vptY: fabricCanvas?.viewportTransform?.[5] ?? 0,
+                thumbRatio: hState.thumbRatio,
+                worldRange: hState.worldMax - hState.worldMin,
               };
             }}
           />
@@ -219,11 +219,14 @@ function CanvasScrollbars({ fabricCanvas }: { fabricCanvas: fabric.Canvas | null
             onMouseDown={(e) => {
               e.preventDefault();
               isDraggingV.current = true;
+              const vState = computeV();
               dragStart.current = {
                 mouseX: e.clientX,
                 mouseY: e.clientY,
                 vptX: fabricCanvas?.viewportTransform?.[4] ?? 0,
                 vptY: fabricCanvas?.viewportTransform?.[5] ?? 0,
+                thumbRatio: vState.thumbRatio,
+                worldRange: vState.worldMax - vState.worldMin,
               };
             }}
           />
