@@ -41,7 +41,6 @@ export function ColorInput({ value, onChange }: ColorInputProps) {
       const upper = hex.toUpperCase();
       setHex(upper);
       onChange(upper);
-      addSavedColor(upper);
     }
   };
 
@@ -57,7 +56,6 @@ export function ColorInput({ value, onChange }: ColorInputProps) {
     const newHex = cmykToHex(newCmyk.c, newCmyk.m, newCmyk.y, newCmyk.k);
     setHex(newHex);
     onChange(newHex);
-    addSavedColor(newHex);
   };
 
   return (
@@ -72,7 +70,6 @@ export function ColorInput({ value, onChange }: ColorInputProps) {
             setHex(newHex);
             setCmyk(hexToCmyk(newHex));
             onChange(newHex);
-            addSavedColor(newHex);
           }}
           className="w-7 h-7 shrink-0 rounded cursor-pointer bg-transparent border border-white/10 p-0 [&::-webkit-color-swatch-wrapper]:p-0 [&::-webkit-color-swatch]:border-none [&::-webkit-color-swatch]:rounded"
         />
@@ -126,23 +123,6 @@ export function ColorInput({ value, onChange }: ColorInputProps) {
               className="w-full bg-transparent text-center text-[10px] text-white py-1 outline-none font-mono"
             />
           </div>
-        ))}
-      </div>
-
-      {/* Saved Colors Palette */}
-      <div className="flex flex-wrap gap-1.5 mt-1">
-        {savedColors.map((color, i) => (
-          <button
-            key={`${color}-${i}`}
-            onClick={() => {
-              setHex(color);
-              setCmyk(hexToCmyk(color));
-              onChange(color);
-            }}
-            className="w-[18px] h-[18px] rounded cursor-pointer border border-white/10 hover:border-white/50 transition-colors"
-            style={{ backgroundColor: color }}
-            title={color}
-          />
         ))}
       </div>
     </div>
