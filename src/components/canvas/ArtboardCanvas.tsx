@@ -310,16 +310,25 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
 
     // ── Wheel zoom (pinch-to-zoom) ─────────────────────────────────────
     const handleWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey && !e.metaKey) return;
       e.preventDefault();
-      const factor = e.deltaY < 0 ? 1.1 : 0.9;
-      const newZoom = Math.max(0.02, Math.min(20, canvas.getZoom() * factor));
-      const upperCanvas = canvas.getElement().parentElement as HTMLElement;
-      const rect = upperCanvas.getBoundingClientRect();
-      const px = e.clientX - rect.left;
-      const py = e.clientY - rect.top;
-      canvas.zoomToPoint(new fabric.Point(px, py), newZoom);
-      canvas.requestRenderAll();
+      if (e.ctrlKey || e.metaKey) {
+        const factor = e.deltaY < 0 ? 1.1 : 0.9;
+        const newZoom = Math.max(0.02, Math.min(20, canvas.getZoom() * factor));
+        const upperCanvas = canvas.getElement().parentElement as HTMLElement;
+        const rect = upperCanvas.getBoundingClientRect();
+        const px = e.clientX - rect.left;
+        const py = e.clientY - rect.top;
+        canvas.zoomToPoint(new fabric.Point(px, py), newZoom);
+        canvas.requestRenderAll();
+      } else {
+        const vpt = canvas.viewportTransform;
+        if (!vpt) return;
+        const dx = e.shiftKey && !e.deltaX ? e.deltaY : e.deltaX;
+        const dy = e.shiftKey && !e.deltaX ? 0 : e.deltaY;
+        vpt[4] -= dx;
+        vpt[5] -= dy;
+        canvas.requestRenderAll();
+      }
     };
     const upperCanvas = canvas.getElement().parentElement as HTMLElement;
     upperCanvas?.addEventListener('wheel', handleWheel, { passive: false });
