@@ -20,7 +20,7 @@ import { applyTextRepeat } from '../../utils/textOnPathUtils';
 import { useCanvasStore, CanvasLayer } from '../../store/useCanvasStore';
 import { useEditorStore } from '../../store/useEditorStore';
 import { INITIAL_ADJUSTMENTS } from '../../utils/adjustments';
-import { globalFabricCanvas, addImageToCanvas, addTextToCanvas } from './ArtboardCanvas';
+import { globalFabricCanvas, addImageToCanvas, addTextToCanvas, ARTBOARD_RECT_MARKER } from './ArtboardCanvas';
 import { toast } from 'react-toastify';
 import { uploadDataUrlToCloud } from '../../utils/tauri-mocks';
 
@@ -439,16 +439,31 @@ export default function LayersPanel() {
       const canvas = globalFabricCanvas;
       if (!canvas) return;
       const newLayers = arrayMove(layers, fromIdx, toIdx);
-      // Rebuild fabric stack order (reversed — last in array = topmost)
-      const reversed = [...newLayers].reverse();
-      const artboards = canvas.getObjects().filter((o: any) => o[ARTBOARD_RECT_MARKER]);
-      const artboardCount = artboards.length;
-      reversed.forEach((layer, i) => {
-        const obj = canvas.getObjects().find((o: any) => o._canvasLayerId === layer.id);
-        if (obj) {
-          obj.moveTo(artboardCount + i);
+      const reversedIds = [...newLayers].reverse().map(l => l.id);
+
+      const artboards: any[] = [];
+      const layerObjs: any[] = [];
+      const others: any[] = [];
+
+      canvas.getObjects().forEach((o: any) => {
+        if (o[ARTBOARD_RECT_MARKER]) {
+          artboards.push(o);
+        } else if (o._canvasLayerId) {
+          layerObjs.push(o);
+        } else {
+          others.push(o);
         }
       });
+
+      layerObjs.sort((a, b) => {
+        const aIdx = reversedIds.indexOf(a._canvasLayerId);
+        const bIdx = reversedIds.indexOf(b._canvasLayerId);
+        return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+      });
+
+      // Directly update the internal objects array for perfect sync
+      (canvas as any)._objects = [...artboards, ...layerObjs, ...others];
+      
       canvas.requestRenderAll();
     },
     [layers, reorderLayers],

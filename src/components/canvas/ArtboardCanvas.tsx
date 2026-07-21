@@ -18,7 +18,7 @@ interface ArtboardCanvasProps {
 export let globalFabricCanvas: fabric.Canvas | null = null;
 
 // Marker used to distinguish artboard background rects from real layers
-const ARTBOARD_RECT_MARKER = '__artboardRect__';
+export const ARTBOARD_RECT_MARKER = '__artboardRect__';
 
 /**
  * Returns the artboard (if any) whose bounds contain the object's centre.
@@ -397,6 +397,10 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
       const activeObjects = canvas.getActiveObjects();
       if (!activeObjects || activeObjects.length === 0) return;
 
+      // In Fabric.js, we must discard the active selection before removing its contents,
+      // otherwise the objects are not properly removed from the canvas.
+      canvas.discardActiveObject();
+
       activeObjects.forEach((obj: any) => {
         if (obj[ARTBOARD_RECT_MARKER]) return;
         const layerId = obj._canvasLayerId;
@@ -404,7 +408,6 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
         if (layerId) removeLayer(layerId);
       });
       
-      canvas.discardActiveObject();
       canvas.requestRenderAll();
       syncLayers(canvas);
       markCanvasDirty();
@@ -786,8 +789,6 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
           try {
             const data = ctx.getImageData(x, y, 1, 1).data;
             const hexColor = `#${((1 << 24) + (data[0] << 16) + (data[1] << 8) + data[2]).toString(16).slice(1).toUpperCase()}`;
-            const activeObj = canvas.getActiveObject();
-            if (activeObj) { activeObj.set('fill', hexColor); canvas.requestRenderAll(); syncLayers(canvas); }
             setPenColor(hexColor);
             addSavedColor(hexColor);
           } catch (err) { console.error('Canvas is tainted, cannot sample color:', err); }
@@ -821,24 +822,24 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
           magnifierDivRef.current.style.left = `${e.clientX}px`;
           magnifierDivRef.current.style.top = `${e.clientY}px`;
           
+          const mCtx = magnifierCanvasRef.current.getContext('2d');
+          if (mCtx) {
+            mCtx.imageSmoothingEnabled = false;
+            mCtx.clearRect(0, 0, 110, 110);
+            mCtx.drawImage(el, Math.round(x) - 5, Math.round(y) - 5, 11, 11, 0, 0, 110, 110);
+            
+            mCtx.strokeStyle = 'white';
+            mCtx.lineWidth = 1;
+            mCtx.strokeRect(50, 50, 10, 10);
+            mCtx.strokeStyle = 'black';
+            mCtx.strokeRect(49, 49, 12, 12);
+          }
+          
           const ctx = el.getContext('2d');
           if (ctx) {
             try {
               const data = ctx.getImageData(x, y, 1, 1).data;
               const hex = `#${((1 << 24) + (data[0] << 16) + (data[1] << 8) + data[2]).toString(16).slice(1).toUpperCase()}`;
-              
-              const mCtx = magnifierCanvasRef.current.getContext('2d');
-              if (mCtx) {
-                mCtx.imageSmoothingEnabled = false;
-                mCtx.clearRect(0, 0, 110, 110);
-                mCtx.drawImage(el, Math.round(x) - 5, Math.round(y) - 5, 11, 11, 0, 0, 110, 110);
-                
-                mCtx.strokeStyle = 'white';
-                mCtx.lineWidth = 1;
-                mCtx.strokeRect(50, 50, 10, 10);
-                mCtx.strokeStyle = 'black';
-                mCtx.strokeRect(49, 49, 12, 12);
-              }
               
               const hexLabel = document.getElementById('magnifier-hex-label');
               if (hexLabel) {
@@ -847,7 +848,14 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
                 const lum = 0.299 * data[0] + 0.587 * data[1] + 0.114 * data[2];
                 hexLabel.style.color = lum > 128 ? 'black' : 'white';
               }
-            } catch (err) {}
+            } catch (err) {
+              const hexLabel = document.getElementById('magnifier-hex-label');
+              if (hexLabel) {
+                hexLabel.textContent = 'Blocked';
+                hexLabel.style.backgroundColor = 'transparent';
+                hexLabel.style.color = '#fff';
+              }
+            }
           }
         }
         return;
