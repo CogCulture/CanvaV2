@@ -26,6 +26,7 @@ const TOOLS = [
   { id: 'type_path', icon: Spline, label: 'Type on Path Tool (Y)' },
   { id: 'lasso', icon: Lasso, label: 'Lasso Selection Tool (S)' },
   { id: 'eraser', icon: Eraser, label: 'Eraser Tool (E)' },
+  { id: 'zoom', icon: Search, label: 'Zoom Tool (Z)' },
 ];
 
 export default function CanvasLeftSidebar() {

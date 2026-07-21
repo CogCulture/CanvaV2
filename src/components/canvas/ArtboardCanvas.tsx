@@ -679,6 +679,19 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
       // Move tool: artboard drag is handled by the global mouse:down handler above, skip here
       if (isArtboardTarget && activeTool === 'move') return;
 
+      if (activeTool === 'zoom') {
+        const pointer = o.pointer || o.scenePoint;
+        if (pointer) {
+          const e = o.e as MouseEvent;
+          const currentZoom = canvas.getZoom();
+          const factor = e.altKey ? 0.8 : 1.25;
+          const newZoom = Math.max(0.02, Math.min(20, currentZoom * factor));
+          canvas.zoomToPoint(new fabric.Point(pointer.x, pointer.y), newZoom);
+          canvas.requestRenderAll();
+        }
+        return;
+      }
+
       if (activeTool === 'eraser' && eraserMode === 'freehand') {
         isEraserDrawing.current = true;
         const pointer = o.scenePoint || o.pointer;
@@ -916,6 +929,10 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
       canvas.defaultCursor = 'cell';
     } else if (activeTool === 'lasso') {
       canvas.defaultCursor = 'crosshair';
+      canvas.selection = false;
+      canvas.getObjects().forEach((o) => { if (!(o as any)[ARTBOARD_RECT_MARKER]) o.evented = false; });
+    } else if (activeTool === 'zoom') {
+      canvas.defaultCursor = 'zoom-in';
       canvas.selection = false;
       canvas.getObjects().forEach((o) => { if (!(o as any)[ARTBOARD_RECT_MARKER]) o.evented = false; });
     }
