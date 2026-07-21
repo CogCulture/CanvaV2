@@ -441,14 +441,13 @@ export default function LayersPanel() {
       const newLayers = arrayMove(layers, fromIdx, toIdx);
       // Rebuild fabric stack order (reversed — last in array = topmost)
       const reversed = [...newLayers].reverse();
-      reversed.forEach((layer, i) => {
+      reversed.forEach((layer) => {
         const obj = canvas.getObjects().find((o: any) => o._canvasLayerId === layer.id);
         if (obj) {
-          canvas.remove(obj);
-          canvas.insertAt(i, obj);
+          obj.bringToFront();
         }
       });
-      canvas.renderAll();
+      canvas.requestRenderAll();
     },
     [layers, reorderLayers],
   );
