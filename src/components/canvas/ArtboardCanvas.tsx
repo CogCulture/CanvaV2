@@ -393,14 +393,21 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
     const handleDelete = (e: KeyboardEvent) => {
       if (e.key !== 'Delete' && e.key !== 'Backspace') return;
       if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
-      const obj = canvas.getActiveObject() as any;
-      if (!obj || obj[ARTBOARD_RECT_MARKER]) return;
-      const layerId = obj._canvasLayerId;
-      canvas.remove(obj);
+      
+      const activeObjects = canvas.getActiveObjects();
+      if (!activeObjects || activeObjects.length === 0) return;
+
+      activeObjects.forEach((obj: any) => {
+        if (obj[ARTBOARD_RECT_MARKER]) return;
+        const layerId = obj._canvasLayerId;
+        canvas.remove(obj);
+        if (layerId) removeLayer(layerId);
+      });
+      
       canvas.discardActiveObject();
-      canvas.renderAll();
-      if (layerId) removeLayer(layerId);
+      canvas.requestRenderAll();
       syncLayers(canvas);
+      markCanvasDirty();
     };
     window.addEventListener('keydown', handleDelete);
 
