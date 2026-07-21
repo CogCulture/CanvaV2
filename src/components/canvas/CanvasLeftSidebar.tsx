@@ -27,6 +27,7 @@ const TOOLS = [
   { id: 'lasso', icon: Lasso, label: 'Lasso Selection Tool (S)' },
   { id: 'eraser', icon: Eraser, label: 'Eraser Tool (E)' },
   { id: 'eyedropper', icon: Pipette, label: 'Eyedropper Tool (I)' },
+  { id: 'hand', icon: Hand, label: 'Pan Tool (H)' },
   { id: 'zoom', icon: Search, label: 'Zoom Tool (Z)' },
 ];
 

@@ -223,7 +223,7 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
         stroke: isActive ? '#6366f1' : 'rgba(255,255,255,0.15)',
         strokeWidth: isActive ? 2 : 1,
         // Movable but no resize / rotate handles
-        selectable: useCanvasStore.getState().activeTool === 'move',
+        selectable: false,
         evented: true,
         hasControls: false,
         hasBorders: true,
