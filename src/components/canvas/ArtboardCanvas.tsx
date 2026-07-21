@@ -151,11 +151,7 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
   const currentShape = useRef<any>(null);
   const dimensionLabel = useRef<fabric.Text | null>(null);
 
-  useEffect(() => {
-    if (activeTool !== 'eyedropper' && magnifierDivRef.current) {
-      magnifierDivRef.current.style.display = 'none';
-    }
-  }, [activeTool]);
+
 
   // Eraser freehand state
   const isEraserDrawing = useRef(false);
@@ -173,6 +169,12 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
     penColor, penSize, setPenColor, lassoMode, eraserMode, eraserSize, markCanvasDirty,
     artboards, activeArtboardId, setActiveArtboard, addArtboard, addSavedColor
   } = useCanvasStore();
+
+  useEffect(() => {
+    if (activeTool !== 'eyedropper' && magnifierDivRef.current) {
+      magnifierDivRef.current.style.display = 'none';
+    }
+  }, [activeTool]);
 
   // ── syncLayers: rebuild layer list from fabric objects ────────────────
   const syncLayers = useCallback(
