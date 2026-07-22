@@ -414,66 +414,73 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
     };
     window.addEventListener('keydown', handleDelete);
 
-    // ── Lasso Enter ────────────────────────────────────────────────────
+    // ── Lasso close: extract the pixels inside the polygon ───────────────
+    // Shared by both Enter key and auto-close on click-near-start.
+    const closeLasso = () => {
+      if (lassoPoints.current.length < 3) return;
+      try {
+        const xs = lassoPoints.current.map(p => p.x);
+        const ys = lassoPoints.current.map(p => p.y);
+        const minX = Math.min(...xs), maxX = Math.max(...xs);
+        const minY = Math.min(...ys), maxY = Math.max(...ys);
+        const w = maxX - minX, h = maxY - minY;
+        const oldPoints = [...lassoPoints.current];
+        lassoPoints.current = [];
+        lastMousePos.current = null;
+        canvas.requestRenderAll();
+
+        setTimeout(() => {
+          try {
+            const lowerCanvasEl = (canvas as any).getElement ? (canvas as any).getElement() : (canvas as any).lowerCanvasEl;
+            const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+            const zoom = vpt[0];
+            const scaleX = lowerCanvasEl.width / (canvas.getWidth() || 1);
+            const scaleY = lowerCanvasEl.height / (canvas.getHeight() || 1);
+            const vMinX = (minX * zoom + vpt[4]) * scaleX;
+            const vMinY = (minY * vpt[3] + vpt[5]) * scaleY;
+            const physWidth = w * zoom * scaleX;
+            const physHeight = h * vpt[3] * scaleY;
+
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = Math.max(1, physWidth);
+            tempCanvas.height = Math.max(1, physHeight);
+            const ctx = tempCanvas.getContext('2d');
+            if (!ctx) return;
+            ctx.beginPath();
+            for (let i = 0; i < oldPoints.length; i++) {
+              const px = (oldPoints[i].x * zoom + vpt[4]) * scaleX;
+              const py = (oldPoints[i].y * vpt[3] + vpt[5]) * scaleY;
+              if (i === 0) ctx.moveTo(px - vMinX, py - vMinY);
+              else ctx.lineTo(px - vMinX, py - vMinY);
+            }
+            ctx.closePath();
+            ctx.clip();
+            ctx.drawImage(lowerCanvasEl, -vMinX, -vMinY);
+            const extractedDataUrl = tempCanvas.toDataURL('image/png');
+            fabric.FabricImage.fromURL(extractedDataUrl).then(fabImg => {
+              const layerId = uuidv4();
+              (fabImg as any)._canvasLayerId = layerId;
+              (fabImg as any)._layerName = 'Lasso Extract';
+              fabImg.set({ left: minX, top: minY, scaleX: 1 / (zoom * scaleX), scaleY: 1 / (vpt[3] * scaleY) });
+              canvas.add(fabImg);
+              lassoPoints.current = [];
+              isLassoing.current = false;
+              lastMousePos.current = null;
+              canvas.discardActiveObject();
+              canvas.setActiveObject(fabImg);
+              canvas.requestRenderAll();
+              syncLayers(canvas);
+              setActiveTool('move');
+            });
+          } catch (e) { console.error('DOM Extraction failed', e); }
+        }, 50);
+      } catch (err) { console.error('Failed to extract lasso:', err); }
+    };
+
+    // ── Lasso Enter (keep Enter key support as a fallback) ────────────────
     const handleEnter = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && useCanvasStore.getState().activeTool === 'lasso') {
-        if (lassoPoints.current.length < 3) return;
-        try {
-          const xs = lassoPoints.current.map(p => p.x);
-          const ys = lassoPoints.current.map(p => p.y);
-          const minX = Math.min(...xs), maxX = Math.max(...xs);
-          const minY = Math.min(...ys), maxY = Math.max(...ys);
-          const w = maxX - minX, h = maxY - minY;
-          const oldPoints = [...lassoPoints.current];
-          lassoPoints.current = [];
-          canvas.requestRenderAll();
-
-          setTimeout(() => {
-            try {
-              const lowerCanvasEl = (canvas as any).getElement ? (canvas as any).getElement() : (canvas as any).lowerCanvasEl;
-              const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
-              const zoom = vpt[0];
-              const scaleX = lowerCanvasEl.width / (canvas.getWidth() || 1);
-              const scaleY = lowerCanvasEl.height / (canvas.getHeight() || 1);
-              const vMinX = (minX * zoom + vpt[4]) * scaleX;
-              const vMinY = (minY * vpt[3] + vpt[5]) * scaleY;
-              const physWidth = w * zoom * scaleX;
-              const physHeight = h * vpt[3] * scaleY;
-
-              const tempCanvas = document.createElement('canvas');
-              tempCanvas.width = physWidth;
-              tempCanvas.height = physHeight;
-              const ctx = tempCanvas.getContext('2d');
-              if (!ctx) return;
-              ctx.beginPath();
-              for (let i = 0; i < oldPoints.length; i++) {
-                const px = (oldPoints[i].x * zoom + vpt[4]) * scaleX;
-                const py = (oldPoints[i].y * vpt[3] + vpt[5]) * scaleY;
-                if (i === 0) ctx.moveTo(px - vMinX, py - vMinY);
-                else ctx.lineTo(px - vMinX, py - vMinY);
-              }
-              ctx.closePath();
-              ctx.clip();
-              ctx.drawImage(lowerCanvasEl, -vMinX, -vMinY);
-              const extractedDataUrl = tempCanvas.toDataURL('image/png');
-              fabric.FabricImage.fromURL(extractedDataUrl).then(fabImg => {
-                const layerId = uuidv4();
-                (fabImg as any)._canvasLayerId = layerId;
-                (fabImg as any)._layerName = 'Lasso Extract';
-                fabImg.set({ left: minX, top: minY, scaleX: 1 / (zoom * scaleX), scaleY: 1 / (vpt[3] * scaleY) });
-                canvas.add(fabImg);
-                lassoPoints.current = [];
-                isLassoing.current = false;
-                lastMousePos.current = null;
-                canvas.discardActiveObject();
-                canvas.setActiveObject(fabImg);
-                canvas.requestRenderAll();
-                syncLayers(canvas);
-                setActiveTool('move');
-              });
-            } catch (e) { console.error('DOM Extraction failed', e); }
-          }, 50);
-        } catch (err) { console.error('Failed to extract lasso:', err); }
+        closeLasso();
       }
     };
     window.addEventListener('keydown', handleEnter);
@@ -796,14 +803,35 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
       } else if (activeTool === 'lasso') {
         const pointer = o.scenePoint || o.pointer || { x: 0, y: 0 };
         if (lassoMode === 'polygon') {
-          if (lassoPoints.current.length === 0) lassoPoints.current = [{x: pointer.x, y: pointer.y}];
-          else lassoPoints.current.push({x: pointer.x, y: pointer.y});
-          lastMousePos.current = {x: pointer.x, y: pointer.y};
-          canvas.requestRenderAll();
+          const pts = lassoPoints.current;
+          if (pts.length === 0) {
+            // Start a new polygon
+            lassoPoints.current = [{ x: pointer.x, y: pointer.y }];
+            lastMousePos.current = { x: pointer.x, y: pointer.y };
+            canvas.requestRenderAll();
+          } else {
+            // ── Auto-close when clicking near the first point ──────────────
+            // Convert the snap threshold from screen pixels to scene coords.
+            const SNAP_SCREEN_PX = 12;
+            const zoom = canvas.getZoom() || 1;
+            const snapSceneRadius = SNAP_SCREEN_PX / zoom;
+            const first = pts[0];
+            const dx = pointer.x - first.x;
+            const dy = pointer.y - first.y;
+            const distSq = dx * dx + dy * dy;
+            if (pts.length >= 3 && distSq <= snapSceneRadius * snapSceneRadius) {
+              // Close the polygon without adding an extra point
+              closeLasso();
+            } else {
+              lassoPoints.current.push({ x: pointer.x, y: pointer.y });
+              lastMousePos.current = { x: pointer.x, y: pointer.y };
+              canvas.requestRenderAll();
+            }
+          }
         } else {
           isLassoing.current = true;
-          lassoPoints.current = [{x: pointer.x, y: pointer.y}];
-          lastMousePos.current = {x: pointer.x, y: pointer.y};
+          lassoPoints.current = [{ x: pointer.x, y: pointer.y }];
+          lastMousePos.current = { x: pointer.x, y: pointer.y };
           canvas.requestRenderAll();
         }
       }
@@ -1078,21 +1106,54 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
       }
 
       if ((activeTool !== 'lasso' && activeTool !== 'type_path') || lassoPoints.current.length === 0) return;
+      const zoom = canvas.getZoom() || 1;
       ctx.save();
       const vpt = canvas.viewportTransform;
       if (vpt) ctx.transform(vpt[0], vpt[1], vpt[2], vpt[3], vpt[4], vpt[5]);
+
+      // Draw lasso outline
       ctx.beginPath();
       ctx.moveTo(lassoPoints.current[0].x, lassoPoints.current[0].y);
       for (let i = 1; i < lassoPoints.current.length; i++) ctx.lineTo(lassoPoints.current[i].x, lassoPoints.current[i].y);
       if (lassoMode === 'polygon' && lastMousePos.current) ctx.lineTo(lastMousePos.current.x, lastMousePos.current.y);
       if (lassoMode === 'polygon' || lassoMode === 'freehand' || lassoMode === 'magnetic') ctx.closePath();
       ctx.strokeStyle = '#0099ff';
-      const zoom = canvas.getZoom() || 1;
       ctx.lineWidth = 2 / zoom;
       ctx.setLineDash([5 / zoom, 5 / zoom]);
       ctx.stroke();
       ctx.fillStyle = 'rgba(0, 153, 255, 0.2)';
       ctx.fill();
+
+      // ── Snap indicator: highlight the first point when cursor is close ──
+      if (lassoMode === 'polygon' && lassoPoints.current.length >= 3 && lastMousePos.current) {
+        const SNAP_SCREEN_PX = 12;
+        const snapSceneRadius = SNAP_SCREEN_PX / zoom;
+        const first = lassoPoints.current[0];
+        const dx = lastMousePos.current.x - first.x;
+        const dy = lastMousePos.current.y - first.y;
+        const isNear = dx * dx + dy * dy <= snapSceneRadius * snapSceneRadius;
+
+        // Always draw a small dot on the first anchor point
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.arc(first.x, first.y, 4 / zoom, 0, Math.PI * 2);
+        ctx.fillStyle = isNear ? '#00cc44' : '#0099ff';
+        ctx.fill();
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1.5 / zoom;
+        ctx.stroke();
+
+        // When close enough, draw a larger green snap ring
+        if (isNear) {
+          ctx.beginPath();
+          ctx.arc(first.x, first.y, snapSceneRadius, 0, Math.PI * 2);
+          ctx.strokeStyle = '#00cc44';
+          ctx.lineWidth = 1.5 / zoom;
+          ctx.setLineDash([3 / zoom, 3 / zoom]);
+          ctx.stroke();
+        }
+      }
+
       ctx.restore();
     };
 
