@@ -152,6 +152,8 @@ export interface CanvasState {
   penColor: string;
   penSize: number;
   setPenColor: (color: string) => void;
+  textFont: string;
+  setTextFont: (font: string) => void;
   savedColors: string[];
   addSavedColor: (color: string) => void;
   setPenSize: (size: number) => void;
@@ -306,6 +308,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   imageEditDataUrl: null,
   setActiveTool: (tool) => set({ activeTool: tool }),
   setPenColor: (color) => set({ penColor: color }),
+  textFont: 'Open Sans',
+  setTextFont: (font) => set({ textFont: font }),
   addSavedColor: (color) => set((state) => {
     // Avoid duplicates and limit to 16 colors
     const upperColor = color.toUpperCase();

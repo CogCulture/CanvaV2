@@ -780,7 +780,8 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
         lastPan.current = { x: o.e.clientX, y: o.e.clientY };
       } else if (activeTool === 'type_path') {
         if (o.target && (o.target.type === 'path' || o.target.type === 'rect' || o.target.type === 'ellipse')) {
-          convertShapeToTextPath(o.target, canvas);
+          const currentFont = useCanvasStore.getState().textFont || 'Open Sans';
+          convertShapeToTextPath(o.target, canvas, currentFont);
           syncLayers(canvas);
           setActiveTool('move');
         } else {
@@ -1028,7 +1029,9 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
           let pathStr = 'M ' + p[0].x + ' ' + p[0].y;
           for (let i = 1; i < p.length; i++) pathStr += ' L ' + p[i].x + ' ' + p[i].y;
           const pathObj = new fabric.Path(pathStr, { fill: 'transparent', stroke: 'transparent', objectCaching: false });
-          createTextOnPath(pathObj, canvas);
+          // Use the currently selected font from the store
+          const currentFont = useCanvasStore.getState().textFont || 'Open Sans';
+          createTextOnPath(pathObj, canvas, 'Type here', currentFont);
           syncLayers(canvas);
           setActiveTool('move');
         }

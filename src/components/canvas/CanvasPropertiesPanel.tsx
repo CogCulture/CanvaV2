@@ -164,6 +164,7 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
       if (layerId) updateLayer(layerId, { opacity: value });
     } else if (key === 'fontFamily') {
       obj.set('fontFamily', value);
+      useCanvasStore.getState().setTextFont(value);
       if ((obj as any).styles) {
         for (const lineIndex in (obj as any).styles) {
           for (const charIndex in (obj as any).styles[lineIndex]) {

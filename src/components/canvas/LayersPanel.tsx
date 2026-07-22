@@ -97,6 +97,7 @@ function LayerRow({ layer }: { layer: CanvasLayer }) {
 
   const handleFontChange = (fontName: string) => {
     setFontFamily(fontName);
+    useCanvasStore.getState().setTextFont(fontName);
     const obj = getFabricObj() as any;
     if (obj) {
       obj.set('fontFamily', fontName);

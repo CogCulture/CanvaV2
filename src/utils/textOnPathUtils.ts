@@ -7,7 +7,8 @@ import { v4 as uuidv4 } from 'uuid';
 export function createTextOnPath(
   pathObj: fabric.Path, 
   canvas: fabric.Canvas, 
-  initialText = 'Type here'
+  initialText = 'Type here',
+  fontFamily = 'Open Sans'
 ) {
   // Ensure the path object has no stroke/fill so it's invisible
   pathObj.set({
@@ -22,7 +23,7 @@ export function createTextOnPath(
     top: pathObj.top,
     fontSize: 24,
     fill: '#000000',
-    fontFamily: 'Inter',
+    fontFamily,
     path: pathObj,
     pathSide: 'left',
     pathAlign: 'center',
@@ -103,7 +104,7 @@ export function applyTextRepeat(textObj: fabric.IText) {
 /**
  * Converts an existing Fabric shape to a path and applies Type on Path.
  */
-export function convertShapeToTextPath(shape: any, canvas: fabric.Canvas) {
+export function convertShapeToTextPath(shape: any, canvas: fabric.Canvas, fontFamily = 'Open Sans') {
   let pathStr = '';
   const left = shape.left;
   const top = shape.top;
@@ -137,7 +138,7 @@ export function convertShapeToTextPath(shape: any, canvas: fabric.Canvas) {
   // Remove the old shape
   canvas.remove(shape);
 
-  const text = createTextOnPath(pathObj, canvas);
+  const text = createTextOnPath(pathObj, canvas, 'Type here', fontFamily);
   if (shape.type === 'rect') {
     (text as any)._rectProps = { 
       left: shape.left, 
