@@ -11,8 +11,17 @@ export const useCanvasHistory = (canvas: fabric.Canvas | null) => {
   const saveHistory = useCallback(() => {
     if (!canvas || isProcessingRef.current) return;
     
-    // Save state with custom properties
-    const json = JSON.stringify(canvas.toObject(['_canvasLayerId', '_layerName', '_sourceFilePath', '_sourceDataUrl', '_adjustments', '_originalDataUrl']));
+    // Save state with custom properties including artboard markers
+    const json = JSON.stringify(canvas.toObject([
+      '_canvasLayerId', 
+      '_layerName', 
+      '_sourceFilePath', 
+      '_sourceDataUrl', 
+      '_adjustments', 
+      '_originalDataUrl',
+      '__artboardRect__',
+      '__artboardId'
+    ]));
     
     setState(prev => {
       // Discard any redos if we make a new change
@@ -86,6 +95,24 @@ export const useCanvasHistory = (canvas: fabric.Canvas | null) => {
         thumbnail: obj.type === 'image' && typeof obj.getSrc === 'function' ? obj.getSrc() : obj._sourceDataUrl,
       }));
       useCanvasStore.getState().setLayers(restoredLayers as any);
+
+      // Restore artboard positions in store
+      const restoredBoards = canvas.getObjects()
+        .filter((o: any) => o.__artboardRect__)
+        .map((o: any) => {
+          const storeBoard = useCanvasStore.getState().artboards.find(b => b.id === o.__artboardId);
+          return {
+            id: o.__artboardId,
+            name: storeBoard?.name || 'Artboard',
+            x: o.left,
+            y: o.top,
+            width: o.width * (o.scaleX || 1),
+            height: o.height * (o.scaleY || 1),
+          };
+        });
+      if (restoredBoards.length > 0) {
+        useCanvasStore.setState({ artboards: restoredBoards });
+      }
       
       setState(prev => ({ ...prev, index: newIndex }));
     }).finally(() => {
@@ -114,6 +141,24 @@ export const useCanvasHistory = (canvas: fabric.Canvas | null) => {
         thumbnail: obj.type === 'image' && typeof obj.getSrc === 'function' ? obj.getSrc() : obj._sourceDataUrl,
       }));
       useCanvasStore.getState().setLayers(restoredLayers as any);
+
+      // Restore artboard positions in store
+      const restoredBoards = canvas.getObjects()
+        .filter((o: any) => o.__artboardRect__)
+        .map((o: any) => {
+          const storeBoard = useCanvasStore.getState().artboards.find(b => b.id === o.__artboardId);
+          return {
+            id: o.__artboardId,
+            name: storeBoard?.name || 'Artboard',
+            x: o.left,
+            y: o.top,
+            width: o.width * (o.scaleX || 1),
+            height: o.height * (o.scaleY || 1),
+          };
+        });
+      if (restoredBoards.length > 0) {
+        useCanvasStore.setState({ artboards: restoredBoards });
+      }
       
       setState(prev => ({ ...prev, index: newIndex }));
     }).finally(() => {
