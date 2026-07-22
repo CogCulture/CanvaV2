@@ -274,11 +274,11 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
     globalFabricCanvas = canvas;
     useCanvasStore.getState().setFabricCanvas(canvas);
     (window as any).__fabricCanvas = canvas;
-    if (onCanvasReady) onCanvasReady(canvas);
-
     // Draw initial artboard rects
     const { artboards: boards, activeArtboardId } = useCanvasStore.getState();
     drawArtboardRects(canvas, boards, activeArtboardId);
+
+    if (onCanvasReady) onCanvasReady(canvas);
 
     // ── ResizeObserver keeps canvas sized to its container ─────────────
     const ro = new ResizeObserver(() => {
