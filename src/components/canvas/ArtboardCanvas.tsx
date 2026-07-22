@@ -976,6 +976,23 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
           }
           lassoPoints.current.push(pt);
           lastMousePos.current = {x: pt.x, y: pt.y};
+
+          // ── Auto-close when cursor returns near the start point ────────
+          // Requires at least 20 points so tiny accidental loops don't fire.
+          if (lassoPoints.current.length >= 20) {
+            const SNAP_SCREEN_PX = 20;
+            const zoom = canvas.getZoom() || 1;
+            const snapSceneRadius = SNAP_SCREEN_PX / zoom;
+            const first = lassoPoints.current[0];
+            const ddx = pt.x - first.x;
+            const ddy = pt.y - first.y;
+            if (ddx * ddx + ddy * ddy <= snapSceneRadius * snapSceneRadius) {
+              isLassoing.current = false;
+              closeLasso();
+              return;
+            }
+          }
+
           canvas.requestRenderAll();
         }
       }
@@ -1021,7 +1038,9 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
       }
       if (activeTool === 'hand') { isPanning.current = false; lastPan.current = null; }
       if (activeTool === 'lasso' && isLassoing.current && (lassoMode === 'freehand' || lassoMode === 'magnetic')) {
+        // Mouse released — close and extract whatever shape was drawn
         isLassoing.current = false;
+        closeLasso();
       }
     };
 
@@ -1137,8 +1156,15 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
       ctx.fill();
 
       // ── Snap indicator: highlight the first point when cursor is close ──
-      if (lassoMode === 'polygon' && lassoPoints.current.length >= 3 && lastMousePos.current) {
-        const SNAP_SCREEN_PX = 12;
+      // Applies to polygon (click-to-close) and freehand/magnetic (drag-to-close).
+      const minPts = lassoMode === 'polygon' ? 3 : 20;
+      const showSnap =
+        lassoPoints.current.length >= minPts &&
+        lastMousePos.current &&
+        (lassoMode === 'polygon' || lassoMode === 'freehand' || lassoMode === 'magnetic');
+
+      if (showSnap && lastMousePos.current) {
+        const SNAP_SCREEN_PX = lassoMode === 'polygon' ? 12 : 20;
         const snapSceneRadius = SNAP_SCREEN_PX / zoom;
         const first = lassoPoints.current[0];
         const dx = lastMousePos.current.x - first.x;
