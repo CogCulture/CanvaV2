@@ -1,66 +1,96 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { fabric } from 'fabric';
-import { useCanvasStore } from '../store/useCanvasStore';
+import * as fabric from 'fabric';
+import { useCanvasStore, Artboard } from '../store/useCanvasStore';
+import { ARTBOARD_RECT_MARKER } from '../components/canvas/ArtboardCanvas';
 
 const MAX_HISTORY = 50;
 
+/** Each history entry captures both the canvas JSON and the artboard positions */
+interface HistorySnapshot {
+  canvasJSON: string;
+  artboards: Artboard[];
+}
+
 export const useCanvasHistory = (canvas: fabric.Canvas | null) => {
-  const [state, setState] = useState<{ history: string[], index: number }>({ history: [], index: -1 });
+  const [state, setState] = useState<{ history: HistorySnapshot[]; index: number }>({
+    history: [],
+    index: -1,
+  });
   const isProcessingRef = useRef(false);
 
+  // ── Save a snapshot of the current canvas + artboard state ────────────
   const saveHistory = useCallback(() => {
     if (!canvas || isProcessingRef.current) return;
-    
-    // Save state with custom properties including artboard markers
-    const json = JSON.stringify(canvas.toObject([
-      '_canvasLayerId', 
-      '_layerName', 
-      '_sourceFilePath', 
-      '_sourceDataUrl', 
-      '_adjustments', 
-      '_originalDataUrl',
-      '__artboardRect__',
-      '__artboardId'
-    ]));
-    
-    setState(prev => {
-      // Discard any redos if we make a new change
+
+    const canvasJSON = JSON.stringify(
+      canvas.toObject([
+        '_canvasLayerId',
+        '_layerName',
+        '_sourceFilePath',
+        '_sourceDataUrl',
+        '_adjustments',
+        '_originalDataUrl',
+        '__artboardRect__',
+        '__artboardId',
+      ]),
+    );
+
+    // Capture artboard positions from the store (source of truth)
+    const artboards: Artboard[] = useCanvasStore
+      .getState()
+      .artboards.map((b) => ({ ...b }));
+
+    setState((prev) => {
       const newHistory = prev.history.slice(0, prev.index + 1);
-      
-      // Don't save if state hasn't changed (e.g. just selecting an object)
-      if (newHistory.length > 0 && newHistory[newHistory.length - 1] === json) {
+      const last = newHistory[newHistory.length - 1];
+
+      // Deduplicate — don't push if nothing changed
+      if (
+        last &&
+        last.canvasJSON === canvasJSON &&
+        JSON.stringify(last.artboards) === JSON.stringify(artboards)
+      ) {
         return prev;
       }
-      
-      newHistory.push(json);
-      // Cap at MAX_HISTORY
-      if (newHistory.length > MAX_HISTORY) {
-        newHistory.shift();
-      }
+
+      newHistory.push({ canvasJSON, artboards });
+      if (newHistory.length > MAX_HISTORY) newHistory.shift();
       return { history: newHistory, index: newHistory.length - 1 };
     });
   }, [canvas]);
 
-  // Initial save when canvas is ready
+  // ── Initial snapshot when canvas becomes available ────────────────────
   useEffect(() => {
     if (canvas && state.history.length === 0) {
       saveHistory();
     }
   }, [canvas, state.history.length, saveHistory]);
 
-  // Attach listeners to canvas events
+  // ── Attach canvas event listeners ─────────────────────────────────────
   useEffect(() => {
     if (!canvas) return;
 
-    const onModified = () => {
+    /** Save after any object modification (position, size, style, …).
+     *  For artboard rects: by the time this fires, drawArtboardRects has
+     *  already finished redrawing (ArtboardCanvas registers its listener
+     *  first), so the canvas is already in a consistent state.            */
+    const onModified = (_e: any) => {
       if (!isProcessingRef.current) saveHistory();
     };
-    const onAdded = (e: fabric.IEvent) => {
-      // Avoid saving on initial load or internal canvas operations
-      if (!isProcessingRef.current) saveHistory();
+
+    /** Skip artboard rects — they are removed transiently by drawArtboardRects
+     *  before being re-added; saving at this moment would create a broken
+     *  intermediate state with no artboard visible.                         */
+    const onAdded = (e: any) => {
+      if (!isProcessingRef.current && !e.target?.[ARTBOARD_RECT_MARKER]) {
+        saveHistory();
+      }
     };
-    const onRemoved = () => {
-      if (!isProcessingRef.current) saveHistory();
+
+    const onRemoved = (e: any) => {
+      if (!isProcessingRef.current && !e.target?.[ARTBOARD_RECT_MARKER]) {
+        saveHistory();
+      }
     };
 
     canvas.on('object:modified', onModified);
@@ -74,102 +104,89 @@ export const useCanvasHistory = (canvas: fabric.Canvas | null) => {
     };
   }, [canvas, saveHistory]);
 
+  // ── Common restore logic used by both undo and redo ───────────────────
+  const restoreSnapshot = useCallback(
+    (snapshot: HistorySnapshot, newIndex: number) => {
+      if (!canvas) return;
+      isProcessingRef.current = true;
+
+      canvas
+        .loadFromJSON(JSON.parse(snapshot.canvasJSON))
+        .then(() => {
+          // Remove any artboard rects that came from the JSON — they will be
+          // redrawn correctly by drawArtboardRects once we update the store.
+          const staleRects = canvas
+            .getObjects()
+            .filter((o: any) => o[ARTBOARD_RECT_MARKER] || o.__artboardRect__);
+          staleRects.forEach((o) => canvas.remove(o));
+
+          canvas.renderAll();
+
+          // Rebuild layer list (real layers only, no artboard rects)
+          const objects = canvas
+            .getObjects()
+            .filter((o: any) => o._canvasLayerId && !o[ARTBOARD_RECT_MARKER]);
+          const restoredLayers = objects.map((obj: any) => ({
+            id: obj._canvasLayerId as string,
+            name: obj._layerName || 'Layer',
+            fabricObjectId: obj._canvasLayerId as string,
+            visible: obj.visible ?? true,
+            locked: !obj.selectable,
+            opacity: Math.round((obj.opacity ?? 1) * 100),
+            type: (
+              obj.type === 'image'
+                ? 'image'
+                : obj.type === 'i-text' ||
+                    obj.type === 'textbox' ||
+                    obj.type === 'text'
+                  ? 'text'
+                  : 'shape'
+            ) as any,
+            thumbnail:
+              obj.type === 'image' && typeof obj.getSrc === 'function'
+                ? obj.getSrc()
+                : obj._sourceDataUrl,
+            artboardId: null,
+          }));
+          useCanvasStore.getState().setLayers(restoredLayers as any);
+
+          // Restore artboard positions from the snapshot.
+          // Setting the store triggers the useEffect in ArtboardCanvas that
+          // calls drawArtboardRects, which redraws artboard rects at the
+          // correct (restored) positions.
+          if (snapshot.artboards && snapshot.artboards.length > 0) {
+            useCanvasStore.setState({ artboards: snapshot.artboards });
+          }
+
+          setState((prev) => ({ ...prev, index: newIndex }));
+        })
+        .finally(() => {
+          isProcessingRef.current = false;
+        });
+    },
+    [canvas],
+  );
+
+  // ── Public undo / redo handlers ───────────────────────────────────────
   const handleUndo = useCallback(() => {
     if (!canvas || state.index <= 0 || isProcessingRef.current) return;
-    
-    isProcessingRef.current = true;
-    const newIndex = state.index - 1;
-    
-    canvas.loadFromJSON(state.history[newIndex]).then(() => {
-      canvas.renderAll();
-      
-      const objects = canvas.getObjects().filter((o: any) => o._canvasLayerId);
-      const restoredLayers = objects.map((obj: any) => ({
-        id: obj._canvasLayerId as string,
-        name: obj._layerName || 'Layer',
-        fabricObjectId: obj._canvasLayerId as string,
-        visible: obj.visible ?? true,
-        locked: !obj.selectable,
-        opacity: obj.opacity ?? 1,
-        type: (obj.type === 'image' ? 'image' : (obj.type === 'i-text' || obj.type === 'textbox' || obj.type === 'text') ? 'text' : 'shape') as any,
-        thumbnail: obj.type === 'image' && typeof obj.getSrc === 'function' ? obj.getSrc() : obj._sourceDataUrl,
-      }));
-      useCanvasStore.getState().setLayers(restoredLayers as any);
-
-      // Restore artboard positions in store
-      const restoredBoards = canvas.getObjects()
-        .filter((o: any) => o.__artboardRect__)
-        .map((o: any) => {
-          const storeBoard = useCanvasStore.getState().artboards.find(b => b.id === o.__artboardId);
-          return {
-            id: o.__artboardId,
-            name: storeBoard?.name || 'Artboard',
-            x: o.left,
-            y: o.top,
-            width: o.width * (o.scaleX || 1),
-            height: o.height * (o.scaleY || 1),
-          };
-        });
-      if (restoredBoards.length > 0) {
-        useCanvasStore.setState({ artboards: restoredBoards });
-      }
-      
-      setState(prev => ({ ...prev, index: newIndex }));
-    }).finally(() => {
-      isProcessingRef.current = false;
-    });
-  }, [canvas, state.history, state.index]);
+    restoreSnapshot(state.history[state.index - 1], state.index - 1);
+  }, [canvas, state.history, state.index, restoreSnapshot]);
 
   const handleRedo = useCallback(() => {
-    if (!canvas || state.index >= state.history.length - 1 || isProcessingRef.current) return;
-    
-    isProcessingRef.current = true;
-    const newIndex = state.index + 1;
-    
-    canvas.loadFromJSON(state.history[newIndex]).then(() => {
-      canvas.renderAll();
-      
-      const objects = canvas.getObjects().filter((o: any) => o._canvasLayerId);
-      const restoredLayers = objects.map((obj: any) => ({
-        id: obj._canvasLayerId as string,
-        name: obj._layerName || 'Layer',
-        fabricObjectId: obj._canvasLayerId as string,
-        visible: obj.visible ?? true,
-        locked: !obj.selectable,
-        opacity: obj.opacity ?? 1,
-        type: (obj.type === 'image' ? 'image' : (obj.type === 'i-text' || obj.type === 'textbox' || obj.type === 'text') ? 'text' : 'shape') as any,
-        thumbnail: obj.type === 'image' && typeof obj.getSrc === 'function' ? obj.getSrc() : obj._sourceDataUrl,
-      }));
-      useCanvasStore.getState().setLayers(restoredLayers as any);
-
-      // Restore artboard positions in store
-      const restoredBoards = canvas.getObjects()
-        .filter((o: any) => o.__artboardRect__)
-        .map((o: any) => {
-          const storeBoard = useCanvasStore.getState().artboards.find(b => b.id === o.__artboardId);
-          return {
-            id: o.__artboardId,
-            name: storeBoard?.name || 'Artboard',
-            x: o.left,
-            y: o.top,
-            width: o.width * (o.scaleX || 1),
-            height: o.height * (o.scaleY || 1),
-          };
-        });
-      if (restoredBoards.length > 0) {
-        useCanvasStore.setState({ artboards: restoredBoards });
-      }
-      
-      setState(prev => ({ ...prev, index: newIndex }));
-    }).finally(() => {
-      isProcessingRef.current = false;
-    });
-  }, [canvas, state.history, state.index]);
+    if (
+      !canvas ||
+      state.index >= state.history.length - 1 ||
+      isProcessingRef.current
+    )
+      return;
+    restoreSnapshot(state.history[state.index + 1], state.index + 1);
+  }, [canvas, state.history, state.index, restoreSnapshot]);
 
   return {
     handleUndo,
     handleRedo,
     canUndo: state.index > 0,
-    canRedo: state.index < state.history.length - 1
+    canRedo: state.index < state.history.length - 1,
   };
 };
