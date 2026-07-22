@@ -202,6 +202,79 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
     [setLayers],
   );
 
+  // ── closeLasso: extract canvas pixels inside the polygon and create a layer
+  // Defined at component level (not inside a useEffect) so it is accessible
+  // from BOTH the Enter-key handler (canvas-init effect) AND the polygon
+  // onMouseDown handler (active-tool effect).
+  const closeLasso = useCallback(() => {
+    const canvas = fabricRef.current;
+    if (!canvas || lassoPoints.current.length < 3) return;
+    try {
+      const xs = lassoPoints.current.map(p => p.x);
+      const ys = lassoPoints.current.map(p => p.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      const minY = Math.min(...ys), maxY = Math.max(...ys);
+      const w = maxX - minX, h = maxY - minY;
+      const oldPoints = [...lassoPoints.current];
+      lassoPoints.current = [];
+      lastMousePos.current = null;
+      canvas.requestRenderAll();
+
+      setTimeout(() => {
+        try {
+          const lowerCanvasEl = (canvas as any).getElement
+            ? (canvas as any).getElement()
+            : (canvas as any).lowerCanvasEl;
+          const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+          const zoom = vpt[0];
+          const scaleX = lowerCanvasEl.width / (canvas.getWidth() || 1);
+          const scaleY = lowerCanvasEl.height / (canvas.getHeight() || 1);
+          const vMinX = (minX * zoom + vpt[4]) * scaleX;
+          const vMinY = (minY * vpt[3] + vpt[5]) * scaleY;
+          const physWidth = w * zoom * scaleX;
+          const physHeight = h * vpt[3] * scaleY;
+
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = Math.max(1, physWidth);
+          tempCanvas.height = Math.max(1, physHeight);
+          const ctx = tempCanvas.getContext('2d');
+          if (!ctx) return;
+          ctx.beginPath();
+          for (let i = 0; i < oldPoints.length; i++) {
+            const px = (oldPoints[i].x * zoom + vpt[4]) * scaleX;
+            const py = (oldPoints[i].y * vpt[3] + vpt[5]) * scaleY;
+            if (i === 0) ctx.moveTo(px - vMinX, py - vMinY);
+            else ctx.lineTo(px - vMinX, py - vMinY);
+          }
+          ctx.closePath();
+          ctx.clip();
+          ctx.drawImage(lowerCanvasEl, -vMinX, -vMinY);
+          const extractedDataUrl = tempCanvas.toDataURL('image/png');
+          fabric.FabricImage.fromURL(extractedDataUrl).then(fabImg => {
+            const layerId = uuidv4();
+            (fabImg as any)._canvasLayerId = layerId;
+            (fabImg as any)._layerName = 'Lasso Extract';
+            fabImg.set({
+              left: minX,
+              top: minY,
+              scaleX: 1 / (zoom * scaleX),
+              scaleY: 1 / (vpt[3] * scaleY),
+            });
+            canvas.add(fabImg);
+            lassoPoints.current = [];
+            isLassoing.current = false;
+            lastMousePos.current = null;
+            canvas.discardActiveObject();
+            canvas.setActiveObject(fabImg);
+            canvas.requestRenderAll();
+            syncLayers(canvas);
+            setActiveTool('move');
+          });
+        } catch (e) { console.error('DOM Extraction failed', e); }
+      }, 50);
+    } catch (err) { console.error('Failed to extract lasso:', err); }
+  }, [syncLayers, setActiveTool]);
+
   // ── drawArtboardRects: render/update artboard background rects ─────────
   const drawArtboardRects = useCallback((canvas: fabric.Canvas, boards: Artboard[], activeId: string | null) => {
     // Remove existing artboard rects
@@ -414,70 +487,9 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
     };
     window.addEventListener('keydown', handleDelete);
 
-    // ── Lasso close: extract the pixels inside the polygon ───────────────
-    // Shared by both Enter key and auto-close on click-near-start.
-    const closeLasso = () => {
-      if (lassoPoints.current.length < 3) return;
-      try {
-        const xs = lassoPoints.current.map(p => p.x);
-        const ys = lassoPoints.current.map(p => p.y);
-        const minX = Math.min(...xs), maxX = Math.max(...xs);
-        const minY = Math.min(...ys), maxY = Math.max(...ys);
-        const w = maxX - minX, h = maxY - minY;
-        const oldPoints = [...lassoPoints.current];
-        lassoPoints.current = [];
-        lastMousePos.current = null;
-        canvas.requestRenderAll();
-
-        setTimeout(() => {
-          try {
-            const lowerCanvasEl = (canvas as any).getElement ? (canvas as any).getElement() : (canvas as any).lowerCanvasEl;
-            const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
-            const zoom = vpt[0];
-            const scaleX = lowerCanvasEl.width / (canvas.getWidth() || 1);
-            const scaleY = lowerCanvasEl.height / (canvas.getHeight() || 1);
-            const vMinX = (minX * zoom + vpt[4]) * scaleX;
-            const vMinY = (minY * vpt[3] + vpt[5]) * scaleY;
-            const physWidth = w * zoom * scaleX;
-            const physHeight = h * vpt[3] * scaleY;
-
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = Math.max(1, physWidth);
-            tempCanvas.height = Math.max(1, physHeight);
-            const ctx = tempCanvas.getContext('2d');
-            if (!ctx) return;
-            ctx.beginPath();
-            for (let i = 0; i < oldPoints.length; i++) {
-              const px = (oldPoints[i].x * zoom + vpt[4]) * scaleX;
-              const py = (oldPoints[i].y * vpt[3] + vpt[5]) * scaleY;
-              if (i === 0) ctx.moveTo(px - vMinX, py - vMinY);
-              else ctx.lineTo(px - vMinX, py - vMinY);
-            }
-            ctx.closePath();
-            ctx.clip();
-            ctx.drawImage(lowerCanvasEl, -vMinX, -vMinY);
-            const extractedDataUrl = tempCanvas.toDataURL('image/png');
-            fabric.FabricImage.fromURL(extractedDataUrl).then(fabImg => {
-              const layerId = uuidv4();
-              (fabImg as any)._canvasLayerId = layerId;
-              (fabImg as any)._layerName = 'Lasso Extract';
-              fabImg.set({ left: minX, top: minY, scaleX: 1 / (zoom * scaleX), scaleY: 1 / (vpt[3] * scaleY) });
-              canvas.add(fabImg);
-              lassoPoints.current = [];
-              isLassoing.current = false;
-              lastMousePos.current = null;
-              canvas.discardActiveObject();
-              canvas.setActiveObject(fabImg);
-              canvas.requestRenderAll();
-              syncLayers(canvas);
-              setActiveTool('move');
-            });
-          } catch (e) { console.error('DOM Extraction failed', e); }
-        }, 50);
-      } catch (err) { console.error('Failed to extract lasso:', err); }
-    };
-
-    // ── Lasso Enter (keep Enter key support as a fallback) ────────────────
+    // ── Lasso close and Lasso Enter ────────────────────────────────────
+    // closeLasso is defined as a component-level useCallback above;
+    // use it here for the Enter-key shortcut.
     const handleEnter = (e: KeyboardEvent) => {
       if (e.key === 'Enter' && useCanvasStore.getState().activeTool === 'lasso') {
         closeLasso();
@@ -1066,7 +1078,7 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
         canvas.requestRenderAll();
       }
     };
-  }, [activeTool, setActiveTool, penColor, penSize, syncLayers, removeLayer, lassoMode, eraserMode, eraserSize]);
+  }, [activeTool, setActiveTool, penColor, penSize, syncLayers, removeLayer, lassoMode, eraserMode, eraserSize, closeLasso]);
 
   // ── Overlay: lasso outline + eraser cursor ────────────────────────────
   useEffect(() => {
