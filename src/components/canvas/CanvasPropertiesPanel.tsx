@@ -175,7 +175,6 @@ export default function CanvasPropertiesPanel({ canvas }: CanvasPropertiesPanelP
         }
       }
       if ((obj as any).isEditing) {
-        (obj as any).setSelectionStyles({ fontFamily: value });
         if ((obj as any).hiddenTextarea) {
           (obj as any).hiddenTextarea.style.fontFamily = `"${value}"`;
         }

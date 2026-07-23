@@ -59,15 +59,15 @@ export function FontDropdown({ value, onChange }: FontDropdownProps) {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Load standard fonts to make preview accurate
   useEffect(() => {
-    const link = document.createElement('link');
-    link.href = `https://fonts.googleapis.com/css2?family=${POPULAR_FONTS.map(f => f.replace(/ /g, '+')).join('&family=')}&display=swap`;
-    link.rel = 'stylesheet';
-    document.head.appendChild(link);
-    return () => {
-      document.head.removeChild(link);
-    };
+    const linkId = 'font-dropdown-stylesheet';
+    if (!document.getElementById(linkId)) {
+      const link = document.createElement('link');
+      link.id = linkId;
+      link.href = `https://fonts.googleapis.com/css2?family=${POPULAR_FONTS.map(f => f.replace(/ /g, '+')).join('&family=')}&display=swap`;
+      link.rel = 'stylesheet';
+      document.head.appendChild(link);
+    }
   }, []);
 
   useEffect(() => {
