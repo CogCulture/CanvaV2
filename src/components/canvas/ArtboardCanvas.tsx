@@ -166,7 +166,7 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
   const {
     activeLayerIds, addLayer, removeLayer, setActiveLayer, setActiveLayers,
     updateLayer, setLayers, layers, initialImageDataUrl, activeTool, setActiveTool,
-    penColor, penSize, setPenColor, lassoMode, eraserMode, eraserSize, markCanvasDirty,
+    penColor, penSize, penHardness, penSmoothness, penType, setPenColor, lassoMode, eraserMode, eraserSize, markCanvasDirty,
     artboards, activeArtboardId, setActiveArtboard, addArtboard, addSavedColor
   } = useCanvasStore();
 
@@ -1049,9 +1049,44 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
 
     if (activeTool === 'pen') {
       canvas.isDrawingMode = true;
-      if (!canvas.freeDrawingBrush) canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
-      canvas.freeDrawingBrush.color = penColor;
-      canvas.freeDrawingBrush.width = penSize;
+      
+      let brush = canvas.freeDrawingBrush;
+      const requiresSpray = penType === 'spray';
+      const requiresCircle = penType === 'circle';
+      const requiresPencil = penType === 'pencil' || !penType;
+      
+      if (requiresSpray && (!brush || (brush as any).type !== 'SprayBrush')) {
+        canvas.freeDrawingBrush = new (fabric as any).SprayBrush(canvas);
+      } else if (requiresCircle && (!brush || (brush as any).type !== 'CircleBrush')) {
+        canvas.freeDrawingBrush = new (fabric as any).CircleBrush(canvas);
+      } else if (requiresPencil && (!brush || (brush as any).type !== 'PencilBrush')) {
+        canvas.freeDrawingBrush = new fabric.PencilBrush(canvas);
+      }
+
+      brush = canvas.freeDrawingBrush!;
+      brush.color = penColor;
+      brush.width = penSize;
+      
+      // Apply Hardness (via Shadow)
+      if (penHardness < 100) {
+        const blur = ((100 - penHardness) / 100) * penSize * 2;
+        brush.shadow = new fabric.Shadow({
+          blur: blur || 1,
+          offsetX: 0,
+          offsetY: 0,
+          affectStroke: true,
+          color: penColor,
+        });
+      } else {
+        brush.shadow = null;
+      }
+      
+      // Apply Smoothness (via decimation for PencilBrush)
+      if ((brush as any).type === 'PencilBrush' || brush instanceof fabric.PencilBrush) {
+        // Map 0-100% smoothness to 0-10 decimation scale (0 = exact mouse path, higher = smoother)
+        (brush as any).decimation = (penSmoothness / 100) * 10;
+      }
+
     } else if (activeTool === 'eraser') {
       canvas.defaultCursor = 'none';
       canvas.selection = false;
@@ -1100,7 +1135,7 @@ export default function ArtboardCanvas({ onCanvasReady }: ArtboardCanvasProps) {
         canvas.requestRenderAll();
       }
     };
-  }, [activeTool, setActiveTool, penColor, penSize, syncLayers, removeLayer, lassoMode, eraserMode, eraserSize, closeLasso]);
+  }, [activeTool, setActiveTool, penColor, penSize, penHardness, penSmoothness, penType, syncLayers, removeLayer, lassoMode, eraserMode, eraserSize, closeLasso]);
 
   // ── Overlay: lasso outline + eraser cursor ────────────────────────────
   useEffect(() => {

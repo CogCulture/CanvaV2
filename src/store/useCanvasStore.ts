@@ -151,12 +151,18 @@ export interface CanvasState {
   setActiveTool: (tool: string) => void;
   penColor: string;
   penSize: number;
+  penHardness: number;
+  penSmoothness: number;
+  penType: 'pencil' | 'spray' | 'circle';
   setPenColor: (color: string) => void;
+  setPenSize: (size: number) => void;
+  setPenHardness: (hardness: number) => void;
+  setPenSmoothness: (smoothness: number) => void;
+  setPenType: (type: 'pencil' | 'spray' | 'circle') => void;
   textFont: string;
   setTextFont: (font: string) => void;
   savedColors: string[];
   addSavedColor: (color: string) => void;
-  setPenSize: (size: number) => void;
   eraserMode: 'freehand' | 'object';
   setEraserMode: (mode: 'freehand' | 'object') => void;
   eraserSize: number;
@@ -303,11 +309,18 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
   activeTool: 'move',
   penColor: '#3B82F6',
   penSize: 10,
+  penHardness: 100,
+  penSmoothness: 50,
+  penType: 'pencil',
   savedColors: ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#6366F1', '#EC4899', '#000000', '#FFFFFF'],
   imageEditLayerId: null,
   imageEditDataUrl: null,
   setActiveTool: (tool) => set({ activeTool: tool }),
   setPenColor: (color) => set({ penColor: color }),
+  setPenSize: (size) => set({ penSize: size }),
+  setPenHardness: (hardness) => set({ penHardness: hardness }),
+  setPenSmoothness: (smoothness) => set({ penSmoothness: smoothness }),
+  setPenType: (type) => set({ penType: type }),
   textFont: 'Open Sans',
   setTextFont: (font) => set({ textFont: font }),
   addSavedColor: (color) => set((state) => {
@@ -317,7 +330,6 @@ export const useCanvasStore = create<CanvasState>((set, get) => ({
     newColors.unshift(upperColor);
     return { savedColors: newColors.slice(0, 16) };
   }),
-  setPenSize: (size) => set({ penSize: size }),
   eraserMode: 'freehand',
   setEraserMode: (mode) => set({ eraserMode: mode }),
   eraserSize: 20,

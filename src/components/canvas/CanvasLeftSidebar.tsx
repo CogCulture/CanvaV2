@@ -105,6 +105,23 @@ export default function CanvasLeftSidebar() {
         >
           <div className="text-xs font-semibold text-white/80 uppercase tracking-wider">Pen Settings</div>
           
+          <div className="flex flex-col gap-2">
+            <label className="text-xs text-white/60">Brush Type</label>
+            <div className="flex gap-1 bg-black/20 p-1 rounded">
+              {['pencil', 'spray', 'circle'].map(type => (
+                <button
+                  key={type}
+                  onClick={() => useCanvasStore.getState().setPenType(type as any)}
+                  className={`flex-1 text-[10px] py-1 rounded capitalize transition-colors ${
+                    useCanvasStore.getState().penType === type ? 'bg-blue-600 text-white' : 'text-white/60 hover:text-white'
+                  }`}
+                >
+                  {type}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="flex flex-col gap-1 w-full">
             <label className="text-xs text-white/60">Color</label>
             <ColorInput value={penColor} onChange={setPenColor} />
@@ -116,11 +133,32 @@ export default function CanvasLeftSidebar() {
               <span>{penSize}px</span>
             </label>
             <input 
-              type="range" 
-              min="1" 
-              max="50" 
-              value={penSize}
+              type="range" min="1" max="50" value={penSize}
               onChange={(e) => setPenSize(parseInt(e.target.value))}
+              className="w-full accent-blue-500"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-white/60 flex justify-between">
+              <span>Hardness</span>
+              <span>{useCanvasStore.getState().penHardness}%</span>
+            </label>
+            <input 
+              type="range" min="0" max="100" value={useCanvasStore.getState().penHardness}
+              onChange={(e) => useCanvasStore.getState().setPenHardness(parseInt(e.target.value))}
+              className="w-full accent-blue-500"
+            />
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-white/60 flex justify-between">
+              <span>Smoothness</span>
+              <span>{useCanvasStore.getState().penSmoothness}%</span>
+            </label>
+            <input 
+              type="range" min="0" max="100" value={useCanvasStore.getState().penSmoothness}
+              onChange={(e) => useCanvasStore.getState().setPenSmoothness(parseInt(e.target.value))}
               className="w-full accent-blue-500"
             />
           </div>
